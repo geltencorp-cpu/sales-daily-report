@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>영업 일일 보고서 대시보드</title>
-    <!-- Marked.js 라이브러리 추가 (AI 분석 결과 Markdown 렌더링용) - Marked.js는 전역으로 로드되어야 합니다. -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.10/marked.min.js"></script> 
     <!-- Tailwind CSS 로드 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- html2canvas는 PNG 다운로드용 -->
@@ -20,8 +18,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
-            color: #1f2937;
+            background-color: #f4f7f9;
         }
         .container-main {
             max-width: 1024px;
@@ -29,7 +26,7 @@
         .card {
             background-color: white;
             border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2pmda (0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
         }
         .drag-source, .drag-target {
             min-height: 5rem;
@@ -73,17 +70,318 @@
             margin-bottom: 0.5rem;
             font-size: 0.875rem;
         }
+        /* AI 분석 결과의 가독성을 높이기 위한 스타일 */
+        #aiAnalysisResult p {
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+        #aiAnalysisResult ul, #aiAnalysisResult ol {
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            list-style: disc; /* 리스트 스타일 추가 */
+        }
+        #aiAnalysisResult li {
+            margin-bottom: 0.25rem;
+            line-height: 1.4;
+        }
+        /* 로딩 스피너 스타일 */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #10b981; /* 에메랄드 색상 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
+</head>
+<body class="p-4 sm:p-8">
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="spinner"></div>
+    </div>
     
+    <div id="dashboard-container" class="container-main mx-auto space-y-8 p-4">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-5xl font-extrabold text-blue-800">영업 일일 보고서 대시보드</h1>
+            <p class="text-gray-600 mt-2">데이터를 기반으로 영업 성과를 분석하고 인사이트를 발견하세요.</p>
+            <p class="text-xs text-gray-400 mt-1">사용자 ID: <span id="userIdDisplay">03937239367092324634</span></p>
+        </header>
+
+        <!-- Main Content Area: Left (Activity & Plans & Analysis) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Column 1 & 2: Activity, Plans, & Analysis (lg:col-span-2) -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- 1. 일일 활동 기록 -->
+                <section class="card p-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="file-pen" class="w-5 h-5 mr-2 text-blue-500"></i>
+                        ✍️ 일일 활동 기록 및 상세 내용 추가
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">보고자 이름:</label>
+                            <select id="reporterName" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border transition duration-150">
+                                <option value="">--- 이름을 선택하세요 ---</option>
+                                <option value="정봉주">정봉주</option>
+                                <option value="김강">김강</option>
+                                <option value="허연">허연</option>
+                                <option value="김산">김산</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">영업 활동 유형 선택:</label>
+                            <select id="activityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                                <option value="">--- 활동 유형을 선택하세요 ---</option>
+                                <option value="공문영업">공문영업</option>
+                                <option value="인바운드 영업">인바운드 영업</option>
+                                <option value="아웃바운드 영업">아웃바운드 영업</option>
+                                <option value="메일영업">메일영업</option>
+                                <option value="SNS 영업">SNS 영업</option>
+                                <option value="대면 영업">대면 영업</option>
+                                <option value="기타영업">기타영업</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 동적으로 생성될 입력 필드 영역 -->
+                    <div id="dynamicActivityFields" class="mt-4 border-l-4 border-blue-200 pl-4 py-2">
+                        <p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>
+                    </div>
+
+                    <button id="addActivityButton" class="w-full mt-6 bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition">
+                        + 활동 내역 추가
+                    </button>
+                    
+                    <div class="mt-6">
+                        <h3 class="font-semibold text-gray-700 mb-2">작성된 활동 목록 (아래로 누적) - 카드를 끌어 '내일 계획'에 연결하세요</h3>
+                        <button id="loadPastDataBtn" class="w-full bg-gray-100 text-gray-700 p-2 mb-2 rounded-lg text-sm hover:bg-gray-200 transition flex items-center justify-center">
+                            <i data-lucide="history" class="w-4 h-4 mr-2"></i>
+                            📅 과거 내역 불러오기 (최근 1개월)
+                        </button>
+                        <div id="activityList" class="drag-source bg-gray-50 p-3 min-h-[5rem]"
+                            ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                            <p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. 내일 계획 작성 -->
+                <section class="card p-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="clipboard-list" class="w-5 h-5 mr-2 text-indigo-500"></i>
+                        📝 내일 계획 작성
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">업무 활동 유형 선택:</label>
+                            <select id="planActivityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
+                                <option value="">--- 유형 선택 ---</option>
+                                <option value="공문영업">공문영업</option>
+                                <option value="인바운드 영업">인바운드 영업</option>
+                                <option value="아웃바운드 영업">아웃바운드 영업</option>
+                                <option value="메일영업">메일영업</option>
+                                <option value="SNS 영업">SNS 영업</option>
+                                <option value="대면 영업">대면 영업</option>
+                                <option value="기타영업">기타영업</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">연관 활동 (여기에 드래그)</label>
+                            <div id="planDropTarget" 
+                                class="drag-target border-indigo-300 bg-indigo-50 p-2 text-xs text-gray-500" 
+                                ondragover="handleDragOver(event)" 
+                                ondragleave="handleDragLeave(event)" 
+                                ondrop="handleDrop(event)">
+                                활동 카드를 여기에 놓으세요 (선택사항)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 동적으로 생성될 입력 필드 영역 -->
+                    <div id="dynamicPlanFields" class="mt-4 border-l-4 border-indigo-200 pl-4 py-2 space-y-3">
+                        <p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>
+                    </div>
+                    
+                    <button id="addPlanButton" class="w-full mt-4 bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition">
+                        + 계획 추가
+                    </button>
+
+                    <div class="mt-6">
+                        <h3 class="font-semibold text-gray-700 mb-2">작성된 내일 계획 목록</h3>
+                        <div id="planList" class="bg-gray-50 p-3 min-h-[5rem]">
+                            <p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. 종합 성과 및 파일 관리 (KPI, 분석 버튼, 차트 통합됨) -->
+                <section class="card p-6">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                        <i data-lucide="bar-chart-2" class="w-5 h-5 mr-2 text-orange-500"></i>
+                        📊 종합 성과
+                    </h2>
+                    
+                    <!-- KPI Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-center mb-6">
+                        
+                        <!-- 당월 누적 매출 -->
+                        <div class="p-3 bg-indigo-50 rounded-lg">
+                            <p class="text-xs text-gray-500">팀 월간 누적 매출</p>
+                            <p id="displayMonthlyCumulativeSales" class="text-lg font-bold text-indigo-800 mt-1">₩0</p>
+                        </div>
+
+                        <!-- 당월 나의 매출 -->
+                        <div class="p-3 bg-blue-50 rounded-lg">
+                            <p class="text-xs text-gray-500">당월 나의 매출</p>
+                            <p id="displayMyMonthlySales" class="text-lg font-bold text-blue-800 mt-1">₩0</p>
+                        </div>
+
+                        <!-- 총 실제 매출 (오늘) (일일 합산) -->
+                        <div class="p-3 bg-green-50 rounded-lg">
+                            <p class="text-xs text-gray-500">총 실제 매출 (오늘)</p>
+                            <p id="displayTotalRevenue" class="text-lg font-bold text-green-800 mt-1">₩0</p>
+                        </div>
+                        
+                        <!-- 총 계약 건수 (오늘) (일일 합산) -->
+                        <div class="p-3 bg-yellow-50 rounded-lg">
+                            <p class="text-xs text-gray-500">총 계약 건수 (오늘)</p>
+                            <p id="displayTotalContracts" class="text-lg font-bold text-yellow-800 mt-1">0건</p>
+                        </div>
+
+                        <!-- 매출 목표 달성률 (오늘) (Mock) -->
+                        <div class="p-3 bg-red-50 rounded-lg">
+                            <p class="text-xs text-gray-500">매출 목표 달성률 (오늘)</p>
+                            <p id="displayRevenueGoalAttainment" class="text-lg font-bold text-red-800 mt-1">0.0%</p>
+                        </div>
+                        
+                    </div>
+
+                    <div class="space-y-3 mb-6">
+                        
+                        <!-- AI 분석 버튼 -->
+                        <button onclick="analyzePerformance()" class="w-full bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition flex items-center justify-center shadow-md">
+                            <i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>
+                            ✨ 성과 인사이트 분석 시작
+                        </button>
+                        
+                    </div>
+                    
+                    <!-- 성과 인사이트 분석 (차트 포함) -->
+                    <div class="pt-6 border-t border-gray-200">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
+                                <i data-lucide="line-chart" class="w-5 h-5 mr-2 text-green-500"></i>
+                                성과 인사이트 분석
+                            </h3>
+                        <div id="aiAnalysisResult" class="mb-6">
+                            <p class="text-gray-500 text-sm">AI 분석을 시작하면 이 영역에 맞춤형 성과 리포트가 나타납니다.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Chart 1: Sales Breakdown (매출 기여도 도넛 차트) -->
+                            <div>
+                                <h4 class="font-semibold text-gray-700 text-lg mb-2 border-b pb-1">월별 매출 기여도 분석</h4>
+                                <div class="relative h-64">
+                                    <canvas id="salesChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Chart 2: Activity Count (활동 유형별 막대 그래프) -->
+                            <div>
+                                <h4 class="font-semibold text-gray-700 text-lg mb-2 border-b pb-1">활동 유형별 실행 건수 (최근 7일)</h4>
+                                <div class="relative h-64">
+                                    <canvas id="activityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Download Button -->
+                    <div class="mt-6 pt-6 border-t border-gray-200 text-center">
+                        <button onclick="downloadAsPNG()" class="w-full max-w-lg mx-auto border border-gray-300 text-gray-700 p-4 rounded-xl font-bold hover:bg-gray-100 transition flex items-center justify-center shadow-lg">
+                            <i data-lucide="download" class="w-6 h-6 mr-3"></i>
+                            ⬇️ 최종 보고서 저장 및 다운로드
+                        </button>
+                    </div>
+
+                </section>
+                
+
+            </div>
+
+            <!-- Column 3: Performance Entry Only (lg:col-span-1) -->
+            <div class="lg:col-span-1 space-y-6">
+
+                <!-- 3. 오늘 최종 실적 입력 -->
+                <section class="card p-6 text-center">
+                    <h2 class="text-xl font-extrabold text-gray-700 flex flex-col items-center">
+                        <div class="flex items-center">
+                            <i data-lucide="trending-up" class="w-5 h-5 mr-2 text-green-500"></i>
+                            💰 오늘 최종 실적 입력
+                        </div>
+                        <span class="mt-1 text-base font-medium text-gray-500">(일별 기준)</span>
+                    </h2>
+                    <p class="text-sm text-gray-500 my-4">오늘 하루의 최종 매출 및 계약 건수를 상세히 기록합니다.</p>
+                    
+                    <div class="space-y-4">
+                        <!-- 매출 건수 입력 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 text-left">매출 발생 건수 (숫자만)</label>
+                            <input type="number" id="inputRevenueCount" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="0">
+                        </div>
+                        <!-- 동적 매출 필드 영역 (세로 정렬) -->
+                        <div id="revenueFields" class="space-y-3">
+                            <!-- revenue inputs will be rendered here -->
+                        </div>
+                        
+                        <hr class="border-t border-gray-200">
+                        
+                        <!-- 계약 건수 입력 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 text-left">계약 체결 건수 (숫자만)</label>
+                            <input type="number" id="inputContractCount" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="0">
+                        </div>
+                        <!-- 동적 계약 필드 영역 (세로 정렬) -->
+                        <div id="contractFields" class="space-y-3">
+                            <!-- contract inputs will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <button onclick="handleSavePerformance()" class="w-full mt-5 bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition flex items-center justify-center shadow-md">
+                        <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
+                        ✅ 오늘 실적 저장
+                    </button>
+                    <div id="saveStatus" class="mt-2 text-sm text-gray-500 font-semibold text-center">실적 및 활동 내역을 기록해 주세요.</div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <h3 class="font-semibold text-gray-700 mb-2">오늘 저장된 실적 목록</h3>
+                        <div id="performanceSummaryList" class="bg-gray-50 p-3 min-h-[5rem] space-y-2">
+                            <p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         
         // --- Gemini API 설정 ---
-        // ⚠️ API 키를 ""으로 설정하여 Canvas 환경이 키를 주입하도록 시도합니다.
-        const GEMINI_API_KEY = ""; 
-        const GEMINI_MODEL = "gemini-2.0-flash"; // 모델 이름 업데이트
+        const GEMINI_API_KEY = "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4";
+        const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
         
-        // [필수] Google Sheets Web App URL (읽기/쓰기 통합 - 새로 배포된 URL로 업데이트됨)
+        // [필수] Google Sheets Web App URL
         const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec";
         const SHEETS_API_URL = SHEETS_URL;
         const SHEETS_READ_URL = SHEETS_URL;
@@ -118,337 +416,35 @@
 
         // --- 재시도 로직을 위한 유틸리티 함수 ---
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-        // --- 활동/계획 카드 렌더링 함수 (앞으로 이동하여 ReferenceError 해결) ---
-        function renderActivityCard(activity) {
-            const list = document.getElementById('activityList');
-            const placeholder = list.querySelector('p.text-gray-400');
-            if (placeholder) {
-                placeholder.remove();
-            }
-            
-            // Note: Sheets에서 로드된 데이터는 이미 Strings로 처리되어 있음.
-            const detailsText = activity.summaryText || `대상: ${activity.target} | 목적: ${activity.purpose} | 건수: ${activity.count}건. 상세: ${activity.fullDetails.substring(0, 20)}...`;
-
-            const card = document.createElement('div');
-            card.id = activity.id;
-            card.className = 'activity-card flex flex-col cursor-grab mb-2';
-            card.draggable = true;
-            card.ondragstart = handleDragStart;
-
-            card.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center">
-                        <span class="text-xs font-bold bg-blue-700 text-white px-2 py-0.5 rounded-full">${activity.type}</span>
-                        <span class="text-xs text-blue-900 opacity-75 ml-2">${activity.time}</span>
-                    </div>
-                    <!-- 삭제 버튼 추가 -->
-                    <button onclick="deleteActivity('${activity.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="활동 삭제">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
-                </div>
-                <!-- 요약된 내용 표시 -->
-                <p class="mt-1 text-sm font-semibold">${detailsText}</p>
-                <p class="text-xs text-blue-900 opacity-75 mt-0.5">보고자: ${activity.reporter}</p>
-            `;
-            list.appendChild(card);
-            lucide.createIcons();
-        }
-
-        function renderPlanCard(plan) {
-            const list = document.getElementById('planList');
-            const placeholder = list.querySelector('p.text-gray-400');
-            if (placeholder) {
-                placeholder.remove();
-            }
-
-            const relatedActivitiesArray = plan.relatedActivities ? plan.relatedActivities.split('; ') : [];
-
-            const relatedHtml = relatedActivitiesArray.length > 0 
-                ? `<div class="mt-2 text-xs bg-indigo-100 p-2 rounded-lg text-indigo-700">
-                    <span class="font-bold">🔗 연관 활동:</span> ${relatedActivitiesArray.join('; ')}
-                   </div>`
-                : '';
-
-            const card = document.createElement('div');
-            card.id = plan.id;
-            card.className = 'plan-card flex flex-col mb-3 transition shadow-sm hover:shadow-md';
-
-            card.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <span class="text-sm font-bold bg-indigo-700 text-white px-3 py-1 rounded-full">${plan.type} (예정)</span>
-                        <span class="text-xs text-indigo-900 font-medium ml-3">담당: ${plan.contact}</span>
-                    </div>
-                    <!-- 삭제 버튼 추가 -->
-                    <button onclick="deletePlan('${plan.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="계획 삭제">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
-                </div>
-                <h4 class="mt-2 text-md font-extrabold text-indigo-900">${plan.followup}</h4>
-                <p class="text-sm mt-1 text-gray-700">상세: ${plan.details}</p>
-                ${relatedHtml}
-            `;
-            list.appendChild(card);
-            lucide.createIcons();
-        }
         
-        // --- 실적 요약 카드 렌더링 함수 ---
-        function renderSummaryCard(summary) {
-            const list = document.getElementById('performanceSummaryList');
-            const placeholder = list.querySelector('p.text-gray-400');
-            if (placeholder) {
-                placeholder.remove();
-            }
-
-            const krwFormatter = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', minimumFractionDigits: 0 });
-
-            let content = '';
-            if (summary.type === 'revenue') {
-                content = `매출 발생 (₩): <strong>${krwFormatter.format(summary.amount)}</strong> | 매출처: ${summary.source}`;
-            } else if (summary.type === 'contract') {
-                content = `계약명: <strong>${summary.contractName}</strong> | 거래처: ${summary.source}`;
-            }
-
-            const card = document.createElement('div');
-            card.className = 'summary-card';
-            card.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <span class="font-bold text-sm">${summary.type === 'revenue' ? '💰 매출 기록' : '🤝 계약 기록'}</span>
-                    <span class="text-xs opacity-75">${summary.time}</span>
-                </div>
-                <p class="mt-1">${content}</p>
-            `;
-            list.appendChild(card);
-            lucide.createIcons();
-        }
         
-        // --- 목록 초기화 및 데이터 기반 렌더링 ---
-        function renderActivityAndPlanLists() {
-            const activityList = document.getElementById('activityList');
-            const planList = document.getElementById('planList');
-            const performanceSummaryList = document.getElementById('performanceSummaryList');
-
-            // --- 렌더링 전에 기존 목록을 비웁니다 ---
-            activityList.innerHTML = '';
-            performanceSummaryList.innerHTML = ''; // 실적 요약 목록은 항상 비웁니다.
-
-            // 플레이스홀더 설정
-            if (dashboardData.activities.length === 0) {
-                activityList.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>';
-            }
-            if (dashboardData.plans.length === 0) {
-                planList.innerHTML = '<p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>';
-            }
-            // 실적 요약 목록은 로컬 데이터가 없을 때만 플레이스홀더 표시
-            if (dashboardData.todaySummaries.length === 0) {
-                 performanceSummaryList.innerHTML = '<p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>';
-            }
-
-            // 데이터 렌더링
-            dashboardData.activities.forEach(renderActivityCard);
-            dashboardData.plans.forEach(renderPlanCard); 
-            dashboardData.todaySummaries.forEach(renderSummaryCard); 
-
-            lucide.createIcons();
-        }
+        // --- Chart Rendering Functions ---
         
-        // --- 전체 입력 필드 초기화 함수 ---
-        function resetAllInputs() {
-            // 1. 활동/계획 입력 초기화
-            document.getElementById('activityType').value = '--- 활동 유형을 선택하세요 ---';
-            document.getElementById('dynamicActivityFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
-            document.getElementById('planActivityType').value = '--- 유형 선택 ---';
-            document.getElementById('planDropTarget').innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
-            document.getElementById('dynamicPlanFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
-
-            // 2. 실적 입력 초기화
-            document.getElementById('inputRevenueCount').value = '';
-            document.getElementById('inputContractCount').value = '';
-            renderRevenueFields(0); 
-            renderContractFields(0);
-
-            // 3. 로컬 데이터 초기화 (목록 비우기)
-            dashboardData.activities = [];
-            dashboardData.plans = []; // 계획도 초기화하여 새 보고서 시작
-            dashboardData.todaySummaries = [];
-            
-            // 4. UI 갱신 (빈 목록 표시)
-            renderActivityAndPlanLists();
-
-            // 5. AI 분석 결과 초기화
-            document.getElementById('aiAnalysisResult').innerHTML = '<p class="text-gray-500 text-sm">AI 분석을 시작하면 이 영역에 맞춤형 성과 리포트가 나타납니다.</p>';
-
-            // 6. KPI 초기화 (다시 로드할 데이터가 없으므로 0으로 설정)
-            dashboardData.performance = {
-                totalRevenue: 0, 
-                totalContracts: 0, 
-                revenueGoalAttainment: 0, 
-                monthlyCumulativeSales: 0, 
-                myMonthlySales: 0, 
-            };
-            dashboardData.chartData.activityCounts = {};
-            updateDashboardUI();
-            
-            displayMessage('✔️ 모든 보고서 필드가 초기화되었습니다. 새로운 보고서 작성을 시작하세요.', 'success');
-        }
-
-        
-        // --- 데이터 초기화 및 UI 로드 ---
-        window.onload = async () => {
-            
-            document.getElementById('userIdDisplay').textContent = currentUserId;
-            lucide.createIcons();
-            
-            // --- 보고자 이름 고정 해제 로직 ---
-            const reporterNameSelect = document.getElementById('reporterName');
-            const savedName = localStorage.getItem(REPORTER_NAME_KEY);
-
-            // 1. 저장된 이름이 있으면 로드 
-            if (savedName) {
-                reporterNameSelect.value = savedName;
-            } 
-            
-            // 2. 이름 변경 시 localStorage 업데이트 
-            reporterNameSelect.addEventListener('change', (event) => {
-                const selectedName = event.target.value.trim();
-                if (selectedName) {
-                    localStorage.setItem(REPORTER_NAME_KEY, selectedName);
-                    displayMessage(`✅ 보고자 이름이 ${selectedName}으로 설정되었습니다.`, 'success');
-                } else {
-                    localStorage.removeItem(REPORTER_NAME_KEY);
-                    displayMessage(`⚠️ 보고자 이름을 선택해 주세요.`, 'error');
-                }
-            });
-            
-            // --- 리스너 연결 ---
-            document.getElementById('addActivityButton').addEventListener('click', handleAddActivity);
-            document.getElementById('activityType').addEventListener('change', renderDynamicFields);
-            document.getElementById('planActivityType').addEventListener('change', renderPlanDynamicFields);
-            document.getElementById('addPlanButton').addEventListener('click', handleAddPlan); 
-            document.getElementById('loadPastDataBtn').addEventListener('click', () => {
-                 const name = localStorage.getItem(REPORTER_NAME_KEY);
-                 if (name) {
-                     fetchSalesData(name, true); // true: 활동 내역 포함 로드
-                 } else {
-                     displayMessage('⚠️ 먼저 보고자 이름을 선택해야 과거 내역을 불러올 수 있습니다.', 'error');
-                 }
-            });
-            
-            // 실적 건수 입력 리스너 (초기화 후 재설정)
-            document.getElementById('inputRevenueCount').addEventListener('input', (e) => {
-                const count = parseInt(e.target.value, 10);
-                if (!isNaN(count) && count >= 0) renderRevenueFields(count);
-            });
-            document.getElementById('inputContractCount').addEventListener('input', (e) => {
-                const count = parseInt(e.target.value, 10);
-                if (!isNaN(count) && count >= 0) renderContractFields(count);
+        // --- UI 업데이트 함수 (KPI 업데이트 및 차트 재렌더링) ---
+        function updateDashboardUI() {
+            // 헬퍼: KRW 통화 형식 지정 (원 단위)
+            const krwFormatter = new Intl.NumberFormat('ko-KR', {
+                style: 'currency',
+                currency: 'KRW',
+                minimumFractionDigits: 0
             });
 
-            // 초기 동적 필드 렌더링 
-            renderRevenueFields(0);
-            renderContractFields(0);
-
-            // 초기 대시보드 UI 업데이트 (데이터 로드 전까지는 0)
-            updateDashboardUI();
-        };
-
-        // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
-        // loadActivities: true일 때만 activities 배열을 덮어씁니다.
-        async function fetchSalesData(reporterName, loadActivities = false) {
-            displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
-
-            try {
-                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                
-                // HTTP 오류 응답 처리
-                if (!response.ok) {
-                     const errorBody = await response.text();
-                     console.error("Sheets API HTTP Error:", response.status, errorBody);
-                     throw new Error(`HTTP 오류: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                if (data.status === 'success' && data.message) {
-                    const fetchedData = data.message;
-
-                    // 1. KPI 업데이트 (항상)
-                    const monthly = fetchedData.monthlyKPI || {};
-                    dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
-                    dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
-                    dashboardData.chartData.activityCounts = monthly.activityCounts || {};
-                    
-                    // 2. 활동 목록 업데이트 (요청 시에만)
-                    if (loadActivities) {
-                         dashboardData.activities = fetchedData.activities || [];
-                         dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
-                    }
-
-                    // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
-                    if (!loadActivities) {
-                        // Sheets에서 오늘 실적 요약 데이터를 가져오지 않음. (실적 저장 시 로컬에서 처리)
-                        // 대신, Sheets에서 계산된 오늘 KPI 값만 업데이트
-                        dashboardData.performance.totalRevenue = fetchedData.todaySummaries
-                            .filter(s => s.type === 'revenue')
-                            .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-                            
-                        dashboardData.performance.totalContracts = fetchedData.todaySummaries
-                             .filter(s => s.type === 'contract')
-                             .length;
-                    }
-
-
-                    // 4. UI 갱신
-                    renderActivityAndPlanLists(); 
-                    updateDashboardUI();
-                    displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
-                    return true;
-                } else {
-                     console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
-                     displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
-                     return false;
-                }
-            } catch (error) {
-                console.error("Sheets Read Error:", error);
-                // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
-                displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
-                updateDashboardUI(); 
-                return false;
-            }
-        }
-        window.fetchSalesData = fetchSalesData;
-
-        // --- Google Sheets로 데이터 전송 핵심 함수 ---
-        async function sendDataToSheets(action, dataPayload) {
-            const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
+            // 일일 KPI 업데이트 (실적 요약 목록에서 합산된 값)
+            document.getElementById('displayTotalRevenue').textContent = krwFormatter.format(dashboardData.performance.totalRevenue);
+            document.getElementById('displayTotalContracts').textContent = `${dashboardData.performance.totalContracts.toLocaleString()}건`;
             
-            if (!SHEETS_URL) {
-                console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
-                return false;
-            }
+            // Sheets에 목표 데이터가 없으므로 임시 Mock 값 유지
+            document.getElementById('displayRevenueGoalAttainment').textContent = `${dashboardData.performance.revenueGoalAttainment.toFixed(1)}%`; 
 
-            try {
-                const response = await fetch(SHEETS_API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, data: dataPayload })
-                });
-
-                console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
-                return true;
-
-            } catch (error) {
-                console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
-                displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
-                return false;
-            }
+            // **월별 KPI 업데이트 (Sheets 데이터 기반으로 업데이트)**
+            document.getElementById('displayMonthlyCumulativeSales').textContent = krwFormatter.format(dashboardData.performance.monthlyCumulativeSales);
+            document.getElementById('displayMyMonthlySales').textContent = krwFormatter.format(dashboardData.performance.myMonthlySales);
+            
+            // 차트 데이터가 KPI 값에 의존하므로, KPI 업데이트 후 차트도 다시 렌더링
+            renderSalesChart(dashboardData.performance);
+            renderActivityChart(dashboardData.chartData.activityCounts);
         }
-        
+
         // --- 차트 렌더링 함수 1: 월별 매출 기여도 (도넛 차트) ---
         function renderSalesChart(performanceData) {
             const mySales = performanceData.myMonthlySales;
@@ -561,6 +557,141 @@
             });
         }
 
+        // --- 활동/계획 카드 렌더링 함수 ---
+        function renderActivityCard(activity) {
+            const list = document.getElementById('activityList');
+            const placeholder = list.querySelector('p.text-gray-400');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            // Note: Sheets에서 로드된 데이터는 이미 Strings로 처리되어 있음.
+            const detailsText = activity.summaryText || `대상: ${activity.target} | 목적: ${activity.purpose} | 건수: ${activity.count}건. 상세: ${activity.fullDetails.substring(0, 20)}...`;
+
+            const card = document.createElement('div');
+            card.id = activity.id;
+            card.className = 'activity-card flex flex-col cursor-grab mb-2';
+            card.draggable = true;
+            card.ondragstart = handleDragStart;
+
+            card.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <span class="text-xs font-bold bg-blue-700 text-white px-2 py-0.5 rounded-full">${activity.type}</span>
+                        <span class="text-xs text-blue-900 opacity-75 ml-2">${activity.time}</span>
+                    </div>
+                    <!-- 삭제 버튼 추가 -->
+                    <button onclick="deleteActivity('${activity.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="활동 삭제">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <!-- 요약된 내용 표시 -->
+                <p class="mt-1 text-sm font-semibold">${detailsText}</p>
+                <p class="text-xs text-blue-900 opacity-75 mt-0.5">보고자: ${activity.reporter}</p>
+            `;
+            list.appendChild(card);
+            lucide.createIcons();
+        }
+
+        function renderPlanCard(plan) {
+            const list = document.getElementById('planList');
+            const placeholder = list.querySelector('p.text-gray-400');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            const relatedActivitiesArray = plan.relatedActivities ? plan.relatedActivities.split('; ') : [];
+
+            const relatedHtml = relatedActivitiesArray.length > 0 
+                ? `<div class="mt-2 text-xs bg-indigo-100 p-2 rounded-lg text-indigo-700">
+                    <span class="font-bold">🔗 연관 활동:</span> ${relatedActivitiesArray.join('; ')}
+                   </div>`
+                : '';
+
+            const card = document.createElement('div');
+            card.id = plan.id;
+            card.className = 'plan-card flex flex-col mb-3 transition shadow-sm hover:shadow-md';
+
+            card.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="text-sm font-bold bg-indigo-700 text-white px-3 py-1 rounded-full">${plan.type} (예정)</span>
+                        <span class="text-xs text-indigo-900 font-medium ml-3">담당: ${plan.contact}</span>
+                    </div>
+                    <!-- 삭제 버튼 추가 -->
+                    <button onclick="deletePlan('${plan.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="계획 삭제">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <h4 class="mt-2 text-md font-extrabold text-indigo-900">${plan.followup}</h4>
+                <p class="text-sm mt-1 text-gray-700">상세: ${plan.details}</p>
+                ${relatedHtml}
+            `;
+            list.appendChild(card);
+            lucide.createIcons();
+        }
+        
+        // --- 실적 요약 카드 렌더링 함수 ---
+        function renderSummaryCard(summary) {
+            const list = document.getElementById('performanceSummaryList');
+            const placeholder = list.querySelector('p.text-gray-400');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            const krwFormatter = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', minimumFractionDigits: 0 });
+
+            let content = '';
+            if (summary.type === 'revenue') {
+                content = `매출 발생 (₩): <strong>${krwFormatter.format(summary.amount)}</strong> | 매출처: ${summary.source}`;
+            } else if (summary.type === 'contract') {
+                content = `계약명: <strong>${summary.contractName}</strong> | 거래처: ${summary.source}`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'summary-card';
+            card.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="font-bold text-sm">${summary.type === 'revenue' ? '💰 매출 기록' : '🤝 계약 기록'}</span>
+                    <span class="text-xs opacity-75">${summary.time}</span>
+                </div>
+                <p class="mt-1">${content}</p>
+            `;
+            list.appendChild(card);
+            lucide.createIcons();
+        }
+
+
+        // --- 목록 초기화 및 데이터 기반 렌더링 ---
+        function renderActivityAndPlanLists() {
+            const activityList = document.getElementById('activityList');
+            const planList = document.getElementById('planList');
+            const performanceSummaryList = document.getElementById('performanceSummaryList');
+
+            // --- 렌더링 전에 기존 목록을 비웁니다 ---
+            activityList.innerHTML = '';
+            performanceSummaryList.innerHTML = ''; // 실적 요약 목록은 항상 비웁니다.
+
+            // 플레이스홀더 설정
+            if (dashboardData.activities.length === 0) {
+                activityList.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>';
+            }
+            if (dashboardData.plans.length === 0) {
+                planList.innerHTML = '<p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>';
+            }
+            // 실적 요약 목록은 로컬 데이터가 없을 때만 플레이스홀더 표시
+            if (dashboardData.todaySummaries.length === 0) {
+                 performanceSummaryList.innerHTML = '<p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>';
+            }
+
+            // 데이터 렌더링
+            dashboardData.activities.forEach(renderActivityCard);
+            dashboardData.plans.forEach(renderPlanCard); 
+            dashboardData.todaySummaries.forEach(renderSummaryCard); 
+
+            lucide.createIcons();
+        }
+
         // --- 활동 내역 삭제 함수 ---
         function deleteActivity(activityId) {
              // 로컬에서만 삭제 (Sheets 반영은 최종 저장 시)
@@ -600,7 +731,7 @@
         window.deletePlan = deletePlan;
 
 
-        // --- 내일 계획 동적 입력 필드 렌더링 ---
+        // --- 동적 입력 필드 렌더링 (활동/계획) ---
         function renderPlanDynamicFields() {
             const container = document.getElementById('dynamicPlanFields');
             const selectedType = document.getElementById('planActivityType').value;
@@ -610,7 +741,7 @@
                 container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
                 return;
             }
-
+            // ... (HTML 구조 유지)
             const fieldsHtml = `
                 <div class="space-y-3">
                     <!-- 1. 수행 후속작업 -->
@@ -718,7 +849,8 @@
                 container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
                 return;
             }
-
+            
+            // ... (HTML 구조 유지)
             container.innerHTML = `
                 <div class="space-y-4">
                     <!-- 1. 영업 대상 -->
@@ -851,31 +983,6 @@
         window.handleAddActivity = handleAddActivity;
 
         
-        // --- UI 업데이트 함수 (KPI 업데이트 및 차트 재렌더링) ---
-        function updateDashboardUI() {
-            // 헬퍼: KRW 통화 형식 지정 (원 단위)
-            const krwFormatter = new Intl.NumberFormat('ko-KR', {
-                style: 'currency',
-                currency: 'KRW',
-                minimumFractionDigits: 0
-            });
-
-            // 일일 KPI 업데이트 (실적 요약 목록에서 합산된 값)
-            document.getElementById('displayTotalRevenue').textContent = krwFormatter.format(dashboardData.performance.totalRevenue);
-            document.getElementById('displayTotalContracts').textContent = `${dashboardData.performance.totalContracts.toLocaleString()}건`;
-            
-            // Sheets에 목표 데이터가 없으므로 임시 Mock 값 유지
-            document.getElementById('displayRevenueGoalAttainment').textContent = `${dashboardData.performance.revenueGoalAttainment.toFixed(1)}%`; 
-
-            // **월별 KPI 업데이트 (Sheets 데이터 기반으로 업데이트)**
-            document.getElementById('displayMonthlyCumulativeSales').textContent = krwFormatter.format(dashboardData.performance.monthlyCumulativeSales);
-            document.getElementById('displayMyMonthlySales').textContent = krwFormatter.format(dashboardData.performance.myMonthlySales);
-            
-            // 차트 데이터가 KPI 값에 의존하므로, KPI 업데이트 후 차트도 다시 렌더링
-            renderSalesChart(dashboardData.performance);
-            renderActivityChart(dashboardData.chartData.activityCounts);
-        }
-        
         // --- 동적 실적 입력 필드 렌더링 ---
         function renderRevenueFields(count) {
             const container = document.getElementById('revenueFields');
@@ -986,14 +1093,11 @@
 
             // 2. Sheets에 데이터 전송 (병렬 처리)
             displayMessage('⏳ 모든 실적 데이터를 Google Sheets로 전송 중...', 'info');
-            // 전송 실패 여부를 확인합니다.
             const results = await Promise.all(sheetsPromises.map(p => p.catch(e => e)));
             const hasError = results.some(r => r instanceof Error || r === false);
             
             if (hasError) {
-                // 하나라도 실패했다면 오류 메시지 출력
                 displayMessage('❌ 일부 실적 데이터 Sheets 전송에 실패했습니다.', 'error');
-                // 이 경우에도 로컬 업데이트는 진행하여 사용자가 데이터를 잃지 않도록 합니다.
             }
 
 
@@ -1001,7 +1105,7 @@
             dashboardData.todaySummaries.push(...allSummaries);
             
             // 여기서는 오늘 저장된 실적만 합산하여 로컬 KPI에 반영합니다.
-            dashboardData.performance.totalRevenue += localRevenueTotal; 
+            dashboardData.performance.totalRevenue += localRevenueTotal;
             dashboardData.performance.totalContracts += localContractCount; 
 
             // 4. 입력 필드 초기화
@@ -1015,7 +1119,7 @@
             
             // 6. Sheets에서 최신 KPI 데이터 로드 (실시간 갱신)
             displayMessage('✅ 실적 저장 완료. KPI 데이터 갱신 중...', 'info');
-            // 실적 저장 시 loadActivities: false (활동 내역과 과거 실적 요약은 불러오지 않음)
+            // Sheets에서 KPI 데이터만 로드 (활동 내역과 과거 실적 요약은 불러오지 않음)
             const loadSuccess = await fetchSalesData(reporterName, false); 
             
             if (loadSuccess) {
@@ -1028,15 +1132,9 @@
             return !hasError;
         };
 
-        // --- LLM 인사이트 분석 (Mock 기능) ---
-        // (이전 로직과 동일하나, 실패 시 재시도 로직이 포함됨)
+        
+        // --- LLM 인사이트 분석 (Gemini API 호출) ---
         async function analyzePerformance() {
-             // marked.js가 로드되었는지 확인합니다.
-             if (typeof marked === 'undefined') {
-                 displayMessage('❌ 분석 실패: marked.js 라이브러리 로드 오류입니다. 페이지를 다시 로드해 주세요.', 'error');
-                 return;
-             }
-            
              const reporterName = document.getElementById('reporterName').value.trim();
              const totalRevenueToday = dashboardData.performance.totalRevenue;
              const totalContractsToday = dashboardData.performance.totalContracts;
@@ -1057,22 +1155,22 @@
              const yesterdayContracts = Math.max(0, totalContractsToday - 1);
 
              const analysisPrompt = `
-                당신은 영업 사원(${reporterName})의 일일 성과를 분석하는 전문 AI 분석가입니다.
-                오늘의 성과와 가상의 어제 성과를 비교 분석하고, 현재 영업 활동 유형을 고려하여 향후 개선할 수 있는 액션 플랜을 제시해주세요.
+                 당신은 영업 사원(${reporterName})의 일일 성과를 분석하는 전문 AI 분석가입니다.
+                 오늘의 성과와 가상의 어제 성과를 비교 분석하고, 현재 영업 활동 유형을 고려하여 향후 개선할 수 있는 액션 플랜을 제시해주세요.
 
-                --- 데이터 ---
-                1. 보고자: ${reporterName}
-                2. 오늘 매출: ${totalRevenueToday.toLocaleString()}원
-                3. 오늘 계약 건수: ${totalContractsToday}건
-                4. 어제 (가상) 매출: ${yesterdayRevenue.toLocaleString()}원
-                5. 어제 (가상) 계약 건수: ${yesterdayContracts}건
-                6. 오늘 주요 활동 건수: ${JSON.stringify(activityCounts)}
+                 --- 데이터 ---
+                 1. 보고자: ${reporterName}
+                 2. 오늘 매출: ${totalRevenueToday.toLocaleString()}원
+                 3. 오늘 계약 건수: ${totalContractsToday}건
+                 4. 어제 (가상) 매출: ${yesterdayRevenue.toLocaleString()}원
+                 5. 어제 (가상) 계약 건수: ${yesterdayContracts}건
+                 6. 오늘 주요 활동 건수: ${JSON.stringify(activityCounts)}
 
-                --- 분석 요청 ---
-                1. 성과 요약: 오늘 실적 변화(매출, 계약 건수)를 어제와 비교하여 핵심적으로 요약해주세요.
-                2. 활동 분석: 가장 높은 비중을 차지하는 활동 유형에 대한 간략한 평가를 제공해주세요.
-                3. 액션 플랜: 성과를 극대화하거나 부족한 부분을 개선하기 위한 구체적인 액션 플랜 2~3가지를 제시해주세요.
-                결과는 마크다운 형식으로 작성해주십시오.
+                 --- 분석 요청 ---
+                 1. 성과 요약: 오늘 실적 변화(매출, 계약 건수)를 어제와 비교하여 핵심적으로 요약해주세요.
+                 2. 활동 분석: 가장 높은 비중을 차지하는 활동 유형에 대한 간략한 평가를 제공해주세요.
+                 3. 액션 플랜: 성과를 극대화하거나 부족한 부분을 개선하기 위한 구체적인 액션 플랜 2~3가지를 제시해주세요.
+                 결과는 마크다운 형식으로 작성해주십시오.
              `;
 
              const resultElement = document.getElementById('aiAnalysisResult');
@@ -1081,505 +1179,195 @@
              
              let attempts = 0;
              const maxAttempts = 5;
-             let analysisText = '';
-             let analysisSources = [];
 
              while (attempts < maxAttempts) {
                  attempts++;
-                 let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000; // 지수 백오프 (1s, 2s, 4s, 8s, 16s)
+                 let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
                  
                  if (delay > 0) {
                       await sleep(delay);
                  }
                  
                  try {
-                     const payload = {
-                         contents: [{ parts: [{ text: analysisPrompt }] }],
-                         tools: [{ "google_search": {} }],
-                         systemInstruction: {
-                             parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-                         },
-                     };
-                     
-                     const response = await fetch(GEMINI_API_URL, {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify(payload)
-                     });
-                     
-                     if (!response.ok) {
-                         // HTTP 오류 응답 본문을 읽어 정확한 오류 메시지를 콘솔에 출력합니다.
-                         const errorBody = await response.json();
-                         console.error("Gemini API Call Failed:", errorBody);
-                         
-                         let errorMessage = `HTTP 오류: ${response.status}`;
-                         if (response.status === 400 || response.status === 403) {
-                             // 400/403은 키 무효/권한 없음이므로 명시합니다.
-                             errorMessage += " (API 키 무효 또는 권한 오류)";
-                         } else if (response.status === 503) {
-                             errorMessage += " (서버 과부하)";
-                         }
-                         
-                         throw new Error(errorMessage);
-                     }
-                     
-                     const result = await response.json();
-                     const candidate = result.candidates?.[0];
+                      // API 키는 런타임에 플랫폼에서 주입됩니다.
+                      const apiKey = GEMINI_API_KEY; 
+                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-                     if (candidate && candidate.content?.parts?.[0]?.text) {
-                         analysisText = candidate.content.parts[0].text;
-                         
-                         // Grounding Sources 추출
-                         const groundingMetadata = candidate.groundingMetadata;
-                         if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                             analysisSources = groundingMetadata.groundingAttributions
-                                 .map(attribution => ({
-                                     uri: attribution.web?.uri,
-                                     title: attribution.web?.title,
-                                 }))
-                                 .filter(source => source.uri && source.title);
-                         }
-                         break; // 성공
-                     } else {
-                          throw new Error("응답 내용 누락");
-                     }
+                      const payload = {
+                           contents: [{ parts: [{ text: analysisPrompt }] }],
+                           tools: [{ "google_search": {} }],
+                           systemInstruction: {
+                               parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
+                           },
+                       };
+                       
+                       const response = await fetch(apiUrl, {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify(payload)
+                       });
+                       
+                       if (!response.ok) {
+                           throw new Error(`HTTP 오류: ${response.status}`);
+                       }
+
+                       const result = await response.json();
+                       const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                       
+                       // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
+                       if (analysisText) {
+                            resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
+                            lucide.createIcons();
+                            return; // 성공 시 함수 종료
+                       } else {
+                            throw new Error("응답 내용 누락");
+                       }
 
                  } catch (error) {
-                     console.error("Gemini API Call Error:", error);
-                     const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
-                     
-                     if (isRetryable && attempts < maxAttempts) {
-                         resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-                         continue;
-                     } else {
-                         // 최종 실패 또는 재시도 불가능한 오류
-                         resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-                         return;
-                     }
+                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
+                      
+                      if (isRetryable && attempts < maxAttempts) {
+                           resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
+                           continue;
+                      } else {
+                           // 최종 실패
+                           resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
+                           return;
+                      }
                  }
              } // end while
-
-             // 최종 결과 렌더링
-             let sourcesHtml = '';
-             if (analysisSources.length > 0) {
-                 sourcesHtml = `<div class="mt-4 border-t pt-2 text-xs text-gray-500">
-                     <p class="font-bold mb-1">참고 자료 (Google Search):</p>
-                     <ul class="list-disc ml-4 space-y-1">
-                         ${analysisSources.map((s, index) => 
-                             `<li><a href="${s.uri}" target="_blank" class="text-blue-600 hover:underline">${s.title}</a></li>`
-                         ).join('')}
-                     </ul>
-                 </div>`;
-             }
-
-             if (analysisText) {
-                 // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
-                 resultElement.innerHTML = `<div class="markdown-body p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>${sourcesHtml}`;
-             }
-             lucide.createIcons();
+             resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
         }
         window.analyzePerformance = analyzePerformance;
 
-        
-        // --- PNG 다운로드 및 초기화 ---
-        function downloadAsPNG() {
-            const reporterName = document.getElementById('reporterName').value.trim();
-            if (!reporterName) {
-                 displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
-                 return;
-            }
+        
+        // --- PNG 다운로드 및 초기화 ---
+        function downloadAsPNG() {
+            const reporterName = document.getElementById('reporterName').value.trim();
+            if (!reporterName) {
+                 displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
+                 return;
+            }
 
-            // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
-            displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
-            const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
+            // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
+            displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
+            const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
 
-            // 2. PNG 캡처 및 다운로드
-            savePromise.then((success) => {
-                 if (success) {
-                    displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
+            // 2. PNG 캡처 및 다운로드
+            savePromise.then((success) => {
+                 // Sheets 저장 성공 여부와 관계없이 다운로드 및 초기화 시도
+                 displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
 
-                    const captureArea = document.getElementById('dashboard-container'); 
-                    
-                    // Note: allowTaint: true를 사용하여 Wix 환경의 CORS 문제를 회피합니다.
-                    html2canvas(captureArea, {
-                        scale: 2, 
-                        logging: false,
-                        useCORS: true,
-                        allowTaint: true
-                    }).then(canvas => {
-                        const link = document.createElement('a');
-                        const today = new Date().toISOString().slice(0, 10);
-                        link.download = `영업일일보고서_${reporterName}_${today}.png`;
-                        // Note: marked.js를 포함한 모든 요소가 캡처될 때까지 잠시 기다립니다.
-                        setTimeout(() => {
-                           link.href = canvas.toDataURL('image/png');
-                           link.click();
-                           
-                           displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-                           
-                           // 3. 다운로드 및 저장 후 최종 초기화
-                           resetAllInputs();
-                        }, 500);
+                 const captureArea = document.getElementById('dashboard-container'); 
+                 
+                 html2canvas(captureArea, {
+                     scale: 2, 
+                     logging: false,
+                     useCORS: true,
+                     allowTaint: true
+                 }).then(canvas => {
+                     const link = document.createElement('a');
+                     const today = new Date().toISOString().slice(0, 10);
+                     link.download = `영업일일보고서_${reporterName}_${today}.png`;
+                     
+                     // 다운로드 링크 설정
+                     link.href = canvas.toDataURL('image/png');
+                     
+                     // 다운로드 실행
+                     setTimeout(() => {
+                         link.click();
+                         displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
+                         
+                         // 3. 다운로드 및 저장 후 최종 초기화
+                         resetAllInputs();
+                     }, 500);
 
 
-                    }).catch(error => {
-                        console.error('Error capturing dashboard:', error);
-                        // 초기화는 다운로드 실패와 무관하게 실행
-                        resetAllInputs();
-                        displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
-                    });
-                 } else {
-                    displayMessage('⚠️ 실적 저장 실패로 다운로드/초기화를 중단합니다.', 'error');
-                 }
-            });
-        }
-        window.downloadAsPNG = downloadAsPNG;
-        
-        // --- 커스텀 메시지 표시 함수 ---
-        function displayMessage(message, type) {
-            const statusElement = document.getElementById('saveStatus');
-            statusElement.textContent = message;
-            statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-            
-            // 일정 시간 후 메시지 초기화
-            if (type !== 'info') {
-                setTimeout(() => {
-                    statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-                    statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-                }, 8000);
-            }
-        }
-        window.displayMessage = displayMessage;
-        
-        // --- 드래그 앤 드롭 로직 ---
-        function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
-        function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
-        function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
-        function handleDrop(event) { 
-            event.preventDefault(); 
-            event.currentTarget.classList.remove('drag-hover'); 
-            const data = event.dataTransfer.getData('text/plain'); 
-            const draggedElement = document.getElementById(data); 
-            if (draggedElement) { 
-                
-                if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
-                    event.currentTarget.innerHTML = '';
-                }
+                 }).catch(error => {
+                     console.error('Error capturing dashboard:', error);
+                     // 초기화는 다운로드 실패와 무관하게 실행
+                     resetAllInputs();
+                     displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
+                 });
+            });
+        }
+        window.downloadAsPNG = downloadAsPNG;
+        
+        // --- 커스텀 메시지 표시 함수 ---
+        function displayMessage(message, type) {
+            const statusElement = document.getElementById('saveStatus');
+            statusElement.textContent = message;
+            statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
+            
+            // 일정 시간 후 메시지 초기화
+            if (type !== 'info') {
+                setTimeout(() => {
+                    statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
+                    statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
+                }, 8000);
+            }
+        }
+        window.displayMessage = displayMessage;
+        
+        // --- 드래그 앤 드롭 로직 ---
+        function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
+        function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
+        function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
+        function handleDrop(event) { 
+            event.preventDefault(); 
+            event.currentTarget.classList.remove('drag-hover'); 
+            const data = event.dataTransfer.getData('text/plain'); 
+            const draggedElement = document.getElementById(data); 
+            if (draggedElement) { 
+                
+                if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
+                    event.currentTarget.innerHTML = '';
+                }
 
-                if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-                     displayMessage('이미 추가된 활동입니다.', 'info');
-                     draggedElement.classList.remove('dragging');
-                     return;
-                }
-                
-                const clone = draggedElement.cloneNode(true);
-                clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
-                clone.dataset.originalId = draggedElement.id; 
-                clone.draggable = false; 
-                clone.style.cursor = 'default';
-                clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
-                clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
-                
-                const summaryDiv = draggedElement.querySelector('.font-semibold');
-                const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
-                
-                const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
-                
-                clone.innerHTML = `<div class="flex justify-between items-center">
-                                     <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-                                     <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-                                    </div>
-                                    <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
-                
-                event.currentTarget.appendChild(clone);
-                draggedElement.classList.remove('dragging');
-            } 
-        }
-        window.handleDragStart = handleDragStart;
-        window.handleDragOver = handleDragOver;
-        window.handleDragLeave = handleDragLeave;
-        window.handleDrop = handleDrop;
-        
-        // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
-        function checkPlanDropTargetEmpty() {
-            const target = document.getElementById('planDropTarget');
-            const linkedCards = target.querySelectorAll('[data-original-id]');
-            if (linkedCards.length === 0) {
-                 target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
-            }
-        }
-        window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
+                if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
+                     displayMessage('이미 추가된 활동입니다.', 'info');
+                     draggedElement.classList.remove('dragging');
+                     return;
+                }
+                
+                const clone = draggedElement.cloneNode(true);
+                clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
+                clone.dataset.originalId = draggedElement.id; 
+                clone.draggable = false; 
+                clone.style.cursor = 'default';
+                clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
+                clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
+                
+                const summaryDiv = draggedElement.querySelector('.font-semibold');
+                const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
+                
+                const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
+                
+                clone.innerHTML = `<div class="flex justify-between items-center">
+                                     <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
+                                     <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
+                                    </div>
+                                    <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
+                
+                event.currentTarget.appendChild(clone);
+                draggedElement.classList.remove('dragging');
+            } 
+        }
+        window.handleDragStart = handleDragStart;
+        window.handleDragOver = handleDragOver;
+        window.handleDragLeave = handleDragLeave;
+        window.handleDrop = handleDrop;
+        
+        // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
+        function checkPlanDropTargetEmpty() {
+            const target = document.getElementById('planDropTarget');
+            const linkedCards = target.querySelectorAll('[data-original-id]');
+            if (linkedCards.length === 0) {
+                 target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
+            }
+        }
+        window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
 
-    </script>
-</head>
-<body class="p-4 sm:p-8">
-    <div id="dashboard-container" class="container-main mx-auto space-y-8 p-4">
-
-        <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-5xl font-extrabold text-blue-800">영업 일일 보고서 대시보드</h1>
-            <p class="text-gray-600 mt-2">데이터를 기반으로 영업 성과를 분석하고 인사이트를 발견하세요.</p>
-            <p class="text-xs text-gray-400 mt-1">사용자 ID: <span id="userIdDisplay">03937239367092324634</span></p>
-        </header>
-
-        <!-- Main Content Area: Left (Activity & Plans & Analysis) -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- Column 1 & 2: Activity, Plans, & Analysis (lg:col-span-2) -->
-            <div class="lg:col-span-2 space-y-6">
-
-                <!-- 1. 일일 활동 기록 -->
-                <section class="card p-6">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="file-pen" class="w-5 h-5 mr-2 text-blue-500"></i>
-                        ✍️ 일일 활동 기록 및 상세 내용 추가
-                    </h2>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">보고자 이름:</label>
-                            <select id="reporterName" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border transition duration-150">
-                                <option value="">--- 이름을 선택하세요 ---</option>
-                                <option value="정봉주">정봉주</option>
-                                <option value="김강">김강</option>
-                                <option value="허연">허연</option>
-                                <option value="김산">김산</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">영업 활동 유형 선택:</label>
-                            <select id="activityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
-                                <option>--- 활동 유형을 선택하세요 ---</option>
-                                <option value="공문영업">공문영업</option>
-                                <option value="인바운드 영업">인바운드 영업</option>
-                                <option value="아웃바운드 영업">아웃바운드 영업</option>
-                                <option value="메일영업">메일영업</option>
-                                <option value="SNS 영업">SNS 영업</option>
-                                <option value="대면 영업">대면 영업</option>
-                                <option value="기타영업">기타영업</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- 동적으로 생성될 입력 필드 영역 -->
-                    <div id="dynamicActivityFields" class="mt-4 border-l-4 border-blue-200 pl-4 py-2">
-                        <p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>
-                    </div>
-
-                    <button id="addActivityButton" class="w-full mt-6 bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition">
-                        + 활동 내역 추가
-                    </button>
-                    
-                    <div class="mt-6">
-                        <h3 class="font-semibold text-gray-700 mb-2">작성된 활동 목록 (아래로 누적) - 카드를 끌어 '내일 계획'에 연결하세요</h3>
-                        <button id="loadPastDataBtn" class="w-full bg-gray-100 text-gray-700 p-2 mb-2 rounded-lg text-sm hover:bg-gray-200 transition flex items-center justify-center">
-                            <i data-lucide="history" class="w-4 h-4 mr-2"></i>
-                            📅 과거 내역 불러오기 (최근 1개월)
-                        </button>
-                        <div id="activityList" class="drag-source bg-gray-50 p-3 min-h-[5rem]">
-                            <p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 2. 내일 계획 작성 -->
-                <section class="card p-6">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="clipboard-list" class="w-5 h-5 mr-2 text-indigo-500"></i>
-                        📝 내일 계획 작성
-                    </h2>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">업무 활동 유형 선택:</label>
-                            <select id="planActivityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
-                                <option value="">--- 유형 선택 ---</option>
-                                <option value="공문영업">공문영업</option>
-                                <option value="인바운드 영업">인바운드 영업</option>
-                                <option value="아웃바운드 영업">아웃바운드 영업</option>
-                                <option value="메일영업">메일영업</option>
-                                <option value="SNS 영업">SNS 영업</option>
-                                <option value="대면 영업">대면 영업</option>
-                                <option value="기타영업">기타영업</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">연관 활동 (여기에 드래그)</label>
-                            <div id="planDropTarget" 
-                                 class="drag-target border-indigo-300 bg-indigo-50 p-2 text-xs text-gray-500" 
-                                 ondragover="handleDragOver(event)" 
-                                 ondragleave="handleDragLeave(event)" 
-                                 ondrop="handleDrop(event)">
-                                활동 카드를 여기에 놓으세요 (선택사항)
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 동적으로 생성될 입력 필드 영역 -->
-                    <div id="dynamicPlanFields" class="mt-4 border-l-4 border-indigo-200 pl-4 py-2 space-y-3">
-                        <p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>
-                    </div>
-                    
-                    <button id="addPlanButton" class="w-full mt-4 bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition">
-                        + 계획 추가
-                    </button>
-
-                    <div class="mt-6">
-                        <h3 class="font-semibold text-gray-700 mb-2">작성된 내일 계획 목록</h3>
-                        <div id="planList" class="bg-gray-50 p-3 min-h-[5rem]">
-                            <p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 4. 종합 성과 및 파일 관리 (KPI, 분석 버튼, 차트 통합됨) -->
-                <section class="card p-6">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                        <i data-lucide="bar-chart-2" class="w-5 h-5 mr-2 text-orange-500"></i>
-                        📊 종합 성과
-                    </h2>
-                    
-                    <!-- KPI Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-center mb-6">
-                        
-                        <!-- 당월 누적 매출 -->
-                        <div class="p-3 bg-indigo-50 rounded-lg">
-                            <p class="text-xs text-gray-500">팀 월간 누적 매출</p>
-                            <p id="displayMonthlyCumulativeSales" class="text-lg font-bold text-indigo-800 mt-1">₩0</p>
-                        </div>
-
-                        <!-- 당월 나의 매출 -->
-                        <div class="p-3 bg-blue-50 rounded-lg">
-                            <p class="text-xs text-gray-500">당월 나의 매출</p>
-                            <p id="displayMyMonthlySales" class="text-lg font-bold text-blue-800 mt-1">₩0</p>
-                        </div>
-
-                        <!-- 총 실제 매출 (오늘) (일일 합산) -->
-                        <div class="p-3 bg-green-50 rounded-lg">
-                            <p class="text-xs text-gray-500">총 실제 매출 (오늘)</p>
-                            <p id="displayTotalRevenue" class="text-lg font-bold text-green-800 mt-1">₩0</p>
-                        </div>
-                        
-                        <!-- 총 계약 건수 (오늘) (일일 합산) -->
-                        <div class="p-3 bg-yellow-50 rounded-lg">
-                            <p class="text-xs text-gray-500">총 계약 건수 (오늘)</p>
-                            <p id="displayTotalContracts" class="text-lg font-bold text-yellow-800 mt-1">0건</p>
-                        </div>
-
-                        <!-- 매출 목표 달성률 (오늘) (Mock) -->
-                        <div class="p-3 bg-red-50 rounded-lg">
-                            <p class="text-xs text-gray-500">매출 목표 달성률 (오늘)</p>
-                            <p id="displayRevenueGoalAttainment" class="text-lg font-bold text-red-800 mt-1">0.0%</p>
-                        </div>
-                        
-                    </div>
-
-                    <div class="space-y-3 mb-6">
-                        
-                        <!-- AI 분석 버튼 -->
-                        <button onclick="analyzePerformance()" class="w-full bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition flex items-center justify-center shadow-md">
-                            <i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>
-                            ✨ 성과 인사이트 분석 시작
-                        </button>
-                        
-                    </div>
-                    
-                    <!-- 성과 인사이트 분석 (차트 포함) -->
-                    <div class="pt-6 border-t border-gray-200">
-                         <h3 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
-                            <i data-lucide="line-chart" class="w-5 h-5 mr-2 text-green-500"></i>
-                            성과 인사이트 분석
-                        </h3>
-                        <div id="aiAnalysisResult" class="mb-6">
-                            <p class="text-gray-500 text-sm">AI 분석을 시작하면 이 영역에 맞춤형 성과 리포트가 나타납니다.</p>
-                        </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Chart 1: Sales Breakdown (매출 기여도 도넛 차트) -->
-                            <div>
-                                <h4 class="font-semibold text-gray-700 text-lg mb-2 border-b pb-1">월별 매출 기여도 분석</h4>
-                                <div class="relative h-64">
-                                    <canvas id="salesChart"></canvas>
-                                </div>
-                            </div>
-                            
-                            <!-- Chart 2: Activity Count (활동 유형별 막대 그래프) -->
-                            <div>
-                                <h4 class="font-semibold text-gray-700 text-lg mb-2 border-b pb-1">활동 유형별 실행 건수 (최근 7일)</h4>
-                                <div class="relative h-64">
-                                    <canvas id="activityChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Download Button -->
-                    <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                        <button onclick="downloadAsPNG()" class="w-full max-w-lg mx-auto border border-gray-300 text-gray-700 p-4 rounded-xl font-bold hover:bg-gray-100 transition flex items-center justify-center shadow-lg">
-                            <i data-lucide="download" class="w-6 h-6 mr-3"></i>
-                            ⬇️ 최종 보고서 저장 및 다운로드
-                        </button>
-                    </div>
-
-                </section>
-                
-
-            </div>
-
-            <!-- Column 3: Performance Entry Only (lg:col-span-1) -->
-            <div class="lg:col-span-1 space-y-6">
-
-                <!-- 3. 오늘 최종 실적 입력 -->
-                <section class="card p-6 text-center">
-                    <h2 class="text-xl font-extrabold text-gray-700 flex flex-col items-center">
-                        <div class="flex items-center">
-                            <i data-lucide="trending-up" class="w-5 h-5 mr-2 text-green-500"></i>
-                            💰 오늘 최종 실적 입력
-                        </div>
-                        <span class="mt-1 text-base font-medium text-gray-500">(일별 기준)</span>
-                    </h2>
-                    <p class="text-sm text-gray-500 my-4">오늘 하루의 최종 매출 및 계약 건수를 상세히 기록합니다.</p>
-                    
-                    <div class="space-y-4">
-                        <!-- 매출 건수 입력 -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 text-left">매출 발생 건수 (숫자만)</label>
-                            <input type="number" id="inputRevenueCount" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="0">
-                        </div>
-                        <!-- 동적 매출 필드 영역 (세로 정렬) -->
-                        <div id="revenueFields" class="space-y-3">
-                            <!-- revenue inputs will be rendered here -->
-                        </div>
-                        
-                        <hr class="border-t border-gray-200">
-                        
-                        <!-- 계약 건수 입력 -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 text-left">계약 체결 건수 (숫자만)</label>
-                            <input type="number" id="inputContractCount" min="0" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="0">
-                        </div>
-                        <!-- 동적 계약 필드 영역 (세로 정렬) -->
-                        <div id="contractFields" class="space-y-3">
-                            <!-- contract inputs will be rendered here -->
-                        </div>
-                    </div>
-                    
-                    <button onclick="handleSavePerformance()" class="w-full mt-5 bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition flex items-center justify-center shadow-md">
-                        <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
-                        ✅ 오늘 실적 저장
-                    </button>
-                    <div id="saveStatus" class="mt-2 text-sm text-gray-500 font-semibold text-center">실적 및 활동 내역을 기록해 주세요.</div>
-                    
-                    <div class="mt-6 pt-4 border-t border-gray-200">
-                        <h3 class="font-semibold text-gray-700 mb-2">오늘 저장된 실적 목록</h3>
-                        <div id="performanceSummaryList" class="bg-gray-50 p-3 min-h-[5rem] space-y-2">
-                            <p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>
-                        </div>
-                    </div>
-                </section>
-
-            </div>
-        </div>
-    </div>
+    </script>
 </body>
 </html>
