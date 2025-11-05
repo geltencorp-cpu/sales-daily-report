@@ -270,7 +270,7 @@
                     <div class="space-y-3 mb-6">
                         
                         <!-- AI 분석 버튼 -->
-                        <button onclick="analyzePerformance()" class="w-full bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition flex items-center justify-center shadow-md">
+                        <button id="analyzeButton" class="w-full bg-indigo-500 text-white p-3 rounded-lg font-bold hover:bg-indigo-600 transition flex items-center justify-center shadow-md">
                             <i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>
                             ✨ 성과 인사이트 분석 시작
                         </button>
@@ -308,7 +308,7 @@
                     
                     <!-- Download Button -->
                     <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                        <button onclick="downloadAsPNG()" class="w-full max-w-lg mx-auto border border-gray-300 text-gray-700 p-4 rounded-xl font-bold hover:bg-gray-100 transition flex items-center justify-center shadow-lg">
+                        <button id="downloadButton" class="w-full max-w-lg mx-auto border border-gray-300 text-gray-700 p-4 rounded-xl font-bold hover:bg-gray-100 transition flex items-center justify-center shadow-lg">
                             <i data-lucide="download" class="w-6 h-6 mr-3"></i>
                             ⬇️ 최종 보고서 저장 및 다운로드
                         </button>
@@ -357,7 +357,7 @@
                         </div>
                     </div>
                     
-                    <button onclick="handleSavePerformance()" class="w-full mt-5 bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition flex items-center justify-center shadow-md">
+                    <button id="savePerformanceButton" class="w-full mt-5 bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition flex items-center justify-center shadow-md">
                         <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
                         ✅ 오늘 실적 저장
                     </button>
@@ -378,12 +378,15 @@
     <script type="module">
         
         // --- Gemini API 설정 ---
-        const GEMINI_API_KEY = "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4";
+        // ⚠️ placeholder API key: 이 키는 실제로는 작동하지 않습니다.
+        // 실제 Google AI Studio에서 발급받은 본인의 API 키로 교체해야 합니다.
+        const GEMINI_API_KEY = "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4"; // ⬅️ 여기에 실제 API 키를 입력하세요.
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
         
         // [필수] Google Sheets Web App URL
-        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec";
+        // ⚠️ placeholder Sheets URL: 이 URL은 실제로는 작동하지 않습니다.
+        // Google Apps Script를 배포하여 생성된 본인의 Web App URL로 교체해야 합니다.
+        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec"; // ⬅️ 여기에 실제 Apps Script URL을 입력하세요.
         const SHEETS_API_URL = SHEETS_URL;
         const SHEETS_READ_URL = SHEETS_URL;
 
@@ -418,29 +421,24 @@
         // --- 재시도 로직을 위한 유틸리티 함수 ---
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // --- Chart Rendering Functions ---
+        // ====================================================================
+        // 1. 함수 정의 (모든 함수를 DOMContentLoaded 이전에 정의)
+        // ====================================================================
         
         // --- UI 업데이트 함수 (KPI 업데이트 및 차트 재렌더링) ---
         function updateDashboardUI() {
-            // 헬퍼: KRW 통화 형식 지정 (원 단위)
             const krwFormatter = new Intl.NumberFormat('ko-KR', {
                 style: 'currency',
                 currency: 'KRW',
                 minimumFractionDigits: 0
             });
 
-            // 일일 KPI 업데이트 (실적 요약 목록에서 합산된 값)
             document.getElementById('displayTotalRevenue').textContent = krwFormatter.format(dashboardData.performance.totalRevenue);
             document.getElementById('displayTotalContracts').textContent = `${dashboardData.performance.totalContracts.toLocaleString()}건`;
-            
-            // Sheets에 목표 데이터가 없으므로 임시 Mock 값 유지
             document.getElementById('displayRevenueGoalAttainment').textContent = `${dashboardData.performance.revenueGoalAttainment.toFixed(1)}%`; 
-
-            // **월별 KPI 업데이트 (Sheets 데이터 기반으로 업데이트)**
             document.getElementById('displayMonthlyCumulativeSales').textContent = krwFormatter.format(dashboardData.performance.monthlyCumulativeSales);
             document.getElementById('displayMyMonthlySales').textContent = krwFormatter.format(dashboardData.performance.myMonthlySales);
             
-            // 차트 데이터가 KPI 값에 의존하므로, KPI 업데이트 후 차트도 다시 렌더링
             renderSalesChart(dashboardData.performance);
             renderActivityChart(dashboardData.chartData.activityCounts);
         }
@@ -476,20 +474,13 @@
                         legend: {
                             position: 'bottom',
                             labels: {
-                                font: {
-                                    family: 'Inter',
-                                    size: 14,
-                                }
+                                font: { family: 'Inter', size: 14 }
                             }
                         },
                         title: {
                             display: true,
                             text: `팀 전체 월간 매출 기여도 (총액: ${cumulativeSales.toLocaleString()}원)`,
-                            font: {
-                                family: 'Inter',
-                                size: 16,
-                                weight: 'bold'
-                            }
+                            font: { family: 'Inter', size: 16, weight: 'bold' }
                         }
                     }
                 }
@@ -515,19 +506,19 @@
                         data: data,
                         backgroundColor: [
                             'rgba(16, 185, 129, 0.7)', 
-                            'rgba(245, 158, 11, 0.7)',  
-                            'rgba(99, 102, 241, 0.7)',  
-                            'rgba(239, 68, 68, 0.7)',   
-                            'rgba(6, 182, 212, 0.7)',   
-                            'rgba(236, 72, 153, 0.7)',  
+                            'rgba(245, 158, 11, 0.7)',  
+                            'rgba(99, 102, 241, 0.7)',  
+                            'rgba(239, 68, 68, 0.7)',    
+                            'rgba(6, 182, 212, 0.7)',    
+                            'rgba(236, 72, 153, 0.7)',  
                         ],
                         borderColor: [
                             'rgb(16, 185, 129)', 
-                            'rgb(245, 158, 11)',  
+                            'rgb(245, 158, 11)',  
                             'rgb(99, 102, 241)', 
-                            'rgb(239, 68, 68)',   
-                            'rgb(6, 182, 212)',   
-                            'rgb(236, 72, 153)',  
+                            'rgb(239, 68, 68)',    
+                            'rgb(6, 182, 212)',    
+                            'rgb(236, 72, 153)',  
                         ],
                         borderWidth: 1
                     }]
@@ -547,10 +538,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: '건수'
-                            }
+                            title: { display: true, text: '건수' }
                         }
                     }
                 }
@@ -565,7 +553,6 @@
                 placeholder.remove();
             }
             
-            // Note: Sheets에서 로드된 데이터는 이미 Strings로 처리되어 있음.
             const detailsText = activity.summaryText || `대상: ${activity.target} | 목적: ${activity.purpose} | 건수: ${activity.count}건. 상세: ${activity.fullDetails.substring(0, 20)}...`;
 
             const card = document.createElement('div');
@@ -580,12 +567,10 @@
                         <span class="text-xs font-bold bg-blue-700 text-white px-2 py-0.5 rounded-full">${activity.type}</span>
                         <span class="text-xs text-blue-900 opacity-75 ml-2">${activity.time}</span>
                     </div>
-                    <!-- 삭제 버튼 추가 -->
                     <button onclick="deleteActivity('${activity.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="활동 삭제">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <!-- 요약된 내용 표시 -->
                 <p class="mt-1 text-sm font-semibold">${detailsText}</p>
                 <p class="text-xs text-blue-900 opacity-75 mt-0.5">보고자: ${activity.reporter}</p>
             `;
@@ -618,7 +603,6 @@
                         <span class="text-sm font-bold bg-indigo-700 text-white px-3 py-1 rounded-full">${plan.type} (예정)</span>
                         <span class="text-xs text-indigo-900 font-medium ml-3">담당: ${plan.contact}</span>
                     </div>
-                    <!-- 삭제 버튼 추가 -->
                     <button onclick="deletePlan('${plan.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="계획 삭제">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
@@ -668,8 +652,8 @@
             const planList = document.getElementById('planList');
             const performanceSummaryList = document.getElementById('performanceSummaryList');
 
-            // --- 렌더링 전에 기존 목록을 비웁니다 ---
             activityList.innerHTML = '';
+            // ⭐️ 수정: 계획 목록은 비우지 않습니다. (수동으로 추가/삭제/로드만 됨)
             performanceSummaryList.innerHTML = ''; // 실적 요약 목록은 항상 비웁니다.
 
             // 플레이스홀더 설정
@@ -679,7 +663,6 @@
             if (dashboardData.plans.length === 0) {
                 planList.innerHTML = '<p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>';
             }
-            // 실적 요약 목록은 로컬 데이터가 없을 때만 플레이스홀더 표시
             if (dashboardData.todaySummaries.length === 0) {
                  performanceSummaryList.innerHTML = '<p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>';
             }
@@ -694,13 +677,12 @@
 
         // --- 활동 내역 삭제 함수 ---
         function deleteActivity(activityId) {
-             // 로컬에서만 삭제 (Sheets 반영은 최종 저장 시)
             dashboardData.activities = dashboardData.activities.filter(a => a.id !== activityId);
             
             const element = document.getElementById(activityId);
             if (element) {
                 element.remove();
-                displayMessage('✔️ 활동 내역이 삭제되었습니다. (Sheets 반영은 최종 저장 시)', 'success');
+                displayMessage('✔️ 활동 내역이 삭제되었습니다.', 'success');
             }
             
             const list = document.getElementById('activityList');
@@ -713,13 +695,12 @@
 
         // --- 내일 계획 삭제 함수 ---
         function deletePlan(planId) {
-            // 로컬에서만 삭제 (Sheets 반영은 최종 저장 시)
             dashboardData.plans = dashboardData.plans.filter(p => p.id !== planId);
             
             const element = document.getElementById(planId);
             if (element) {
                 element.remove();
-                displayMessage('✔️ 내일 계획이 삭제되었습니다. (Sheets 반영은 최종 저장 시)', 'success');
+                displayMessage('✔️ 내일 계획이 삭제되었습니다.', 'success');
             }
             
             const list = document.getElementById('planList');
@@ -737,26 +718,21 @@
             const selectedType = document.getElementById('planActivityType').value;
             container.innerHTML = ''; 
 
-            if (selectedType === '--- 유형 선택 ---') {
+            if (selectedType === "" || selectedType === "--- 유형 선택 ---") {
                 container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
                 return;
             }
-            // ... (HTML 구조 유지)
+
             const fieldsHtml = `
                 <div class="space-y-3">
-                    <!-- 1. 수행 후속작업 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">수행 후속작업</label>
                         <input type="text" id="planFollowup" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 보고서 제출, 다음 단계 논의, 견적 발송">
                     </div>
-
-                    <!-- 2. 연락처 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">연락처 / 담당자</label>
                         <input type="text" id="planContact" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 김철수, 010-XXXX-XXXX">
                     </div>
-                    
-                    <!-- 3. 상세 계획 / To-Do List -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">상세 계획 / To-Do List</label>
                         <textarea id="planDetailsInput" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="내일의 주요 목표와 상세 업무 내용을 작성하세요."></textarea>
@@ -772,7 +748,7 @@
         // --- 내일 계획 추가 핸들러 ---
         async function handleAddPlan() {
             const reporterNameSelect = document.getElementById('reporterName');
-            const reporterName = reporterNameSelect.value.trim(); // 이름 고정 해제됨
+            const reporterName = reporterNameSelect.value.trim(); 
 
             if (!reporterName) {
                 displayMessage('⚠️ 보고자 이름을 먼저 선택하고 활동을 추가하세요.', 'error');
@@ -785,8 +761,7 @@
             const planDetailsInput = document.getElementById('planDetailsInput');
             const planDropTarget = document.getElementById('planDropTarget');
             
-            // 1. 유효성 검사
-            if (planActivityType === '--- 유형 선택 ---' || !planFollowupInput || !planContactInput || !planDetailsInput) {
+            if (planActivityType === "" || planActivityType === "--- 유형 선택 ---" || !planFollowupInput || !planContactInput || !planDetailsInput) {
                 displayMessage('⚠️ 계획 유형을 선택하고 모든 상세 필드를 입력해야 합니다.', 'error');
                 return;
             }
@@ -800,7 +775,6 @@
                  return;
             }
 
-            // 2. 연관 활동 정보 추출
             const relatedActivities = Array.from(planDropTarget.children)
                 .filter(child => child.dataset.originalId)
                 .map(child => {
@@ -809,7 +783,6 @@
                 });
 
             const now = new Date();
-            // 3. 새 계획 객체 생성
             const newPlan = {
                 id: `plan-${planCounter++}`,
                 reporter: reporterName,
@@ -823,18 +796,15 @@
                 status: '예정'
             };
 
-            // 4. 로컬 데이터 저장 및 UI 즉시 업데이트 (속도 개선)
             dashboardData.plans.push(newPlan);
             renderPlanCard(newPlan); 
 
-            // 5. 입력 필드 초기화
-            document.getElementById('planActivityType').value = '--- 유형 선택 ---';
+            document.getElementById('planActivityType').value = "";
             planDropTarget.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
             document.getElementById('dynamicPlanFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
 
             displayMessage('✔️ 새로운 내일 계획이 추가되었습니다.', 'success');
 
-            // 6. Google Sheets에 데이터 비동기 전송
             await sendDataToSheets('add계획', newPlan);
         }
         window.handleAddPlan = handleAddPlan;
@@ -845,48 +815,47 @@
             const container = document.getElementById('dynamicActivityFields');
             const selectedType = document.getElementById('activityType').value;
 
-            if (selectedType === '--- 활동 유형을 선택하세요 ---') {
+            if (selectedType === "" || selectedType === "--- 활동 유형을 선택하세요 ---") {
                 container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
                 return;
             }
             
-            // ... (HTML 구조 유지)
             container.innerHTML = `
                 <div class="space-y-4">
-                    <!-- 1. 영업 대상 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">영업 대상</label>
                         <input type="text" id="inputTarget" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: A사 신규 프로젝트, 기존 B고객 유지">
                     </div>
-
-                    <!-- 2. 영업 목적 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">영업 목적</label>
                         <input type="text" id="inputPurpose" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 신제품 X 판매, 계약 연장">
                     </div>
-                    
-                    <!-- 3. 예상 성과 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">예상 성과</label>
                         <input type="text" id="inputExpectedResult" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 500만원 계약 체결, 다음 미팅 확정">
                     </div>
-
                     <hr class="border-t border-gray-200">
-                    
-                    <!-- 4. 실적 건수 (동적 생성 기준) -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700">실적 건수 (숫자만 입력)</label>
-                        <input type="number" id="inputPerformanceCount" min="1" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" oninput="renderDetailFields(this.value)" placeholder="1">
+                        <input type="number" id="inputPerformanceCount" min="1" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="1">
                     </div>
-
-                    <!-- 5. 상세 내용 (동적 생성 영역) -->
                     <div id="detailTextareas" class="space-y-3">
                         <!-- 상세 내용 입력란이 여기에 동적으로 생성됩니다. -->
                     </div>
                 </div>
             `;
-            // 기본값 1에 대해 상세 내용 필드 1개를 바로 렌더링
-            renderDetailFields(1);
+            
+            renderDetailFields(1); // 기본 1개 생성
+            
+            // ⭐️ 중요: inputPerformanceCount가 생성된 직후에 리스너를 연결합니다.
+            const performanceCountInput = document.getElementById('inputPerformanceCount');
+            if(performanceCountInput) {
+                performanceCountInput.addEventListener('input', (e) => {
+                    const count = parseInt(e.target.value, 10);
+                    if (!isNaN(count) && count >= 0) renderDetailFields(count);
+                });
+            }
+            
             lucide.createIcons();
         }
         window.renderDynamicFields = renderDynamicFields;
@@ -896,6 +865,8 @@
         function renderDetailFields(countString) {
             const count = parseInt(countString, 10);
             const container = document.getElementById('detailTextareas');
+            if (!container) return; // container가 아직 없으면 종료
+            
             container.innerHTML = '';
 
             if (isNaN(count) || count <= 0) {
@@ -919,7 +890,7 @@
         // --- 활동 내역 추가 핸들러 ---
         async function handleAddActivity() {
             const reporterNameSelect = document.getElementById('reporterName'); 
-            let reporterName = reporterNameSelect.value.trim(); // 이름 고정 해제됨
+            let reporterName = reporterNameSelect.value.trim(); 
 
             const activityTypeSelect = document.getElementById('activityType');
             const activityType = activityTypeSelect.value;
@@ -929,13 +900,11 @@
             const expectedResult = document.getElementById('inputExpectedResult')?.value.trim();
             const count = parseInt(document.getElementById('inputPerformanceCount')?.value, 10) || 0;
             
-            // 이름 유효성 검사 (고정 로직 제거)
             if (!reporterName) {
                 displayMessage('⚠️ 보고자 이름을 먼저 선택하고 활동을 추가하세요.', 'error');
                 return;
             }
             
-            // 상세 내용 수집
             let collectedDetails = [];
             for (let i = 1; i <= count; i++) {
                 const detailElement = document.getElementById(`detail_${i}`);
@@ -944,8 +913,7 @@
                 }
             }
 
-
-            if (activityType === '--- 활동 유형을 선택하세요 ---' || !target || count <= 0 || collectedDetails.length === 0) {
+            if (activityType === "" || activityType === "--- 활동 유형을 선택하세요 ---" || !target || count <= 0 || collectedDetails.length === 0) {
                 displayMessage('⚠️ 활동 유형, 영업 대상, 실적 건수 및 상세 내용을 모두 입력해야 합니다.', 'error');
                 return;
             }
@@ -967,17 +935,14 @@
                 summaryText: summaryText
             };
 
-            // 1. 로컬 데이터에 추가 및 UI 즉시 업데이트 (응답 속도 개선)
             dashboardData.activities.push(newActivity); 
             renderActivityCard(newActivity); 
             
-            // 2. 입력 필드 초기화
-            activityTypeSelect.value = '--- 활동 유형을 선택하세요 ---';
+            activityTypeSelect.value = "";
             document.getElementById('dynamicActivityFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
 
             displayMessage('✔️ 새로운 활동 내역이 추가되었습니다.', 'success');
             
-            // 3. Google Sheets에 데이터 비동기 전송
             await sendDataToSheets('add활동', newActivity);
         }
         window.handleAddActivity = handleAddActivity;
@@ -1020,14 +985,13 @@
         // --- 이벤트 핸들러: 실적 저장, 요약 표시, Sheets 전송 (비동기) ---
         window.handleSavePerformance = async () => {
             const reporterNameSelect = document.getElementById('reporterName');
-            const reporterName = reporterNameSelect.value.trim(); // 이름 고정 해제됨
+            const reporterName = reporterNameSelect.value.trim(); 
             
             if (!reporterName) {
                 displayMessage('⚠️ 보고자 이름이 설정되지 않았습니다.', 'error');
                 return false; 
             }
             
-            // 1. 데이터 수집
             const revenueCount = parseInt(document.getElementById('inputRevenueCount').value, 10) || 0;
             const contractCount = parseInt(document.getElementById('inputContractCount').value, 10) || 0;
             const now = new Date();
@@ -1150,7 +1114,6 @@
                  return;
              }
 
-             // Mock 데이터 생성 (어제 실적 가정: 오늘보다 5% 낮고, 계약 1건 적음)
              const yesterdayRevenue = Math.max(0, Math.round(totalRevenueToday * 0.95));
              const yesterdayContracts = Math.max(0, totalContractsToday - 1);
 
@@ -1185,1173 +1148,417 @@
                  let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
                  
                  if (delay > 0) {
-                      await sleep(delay);
+                     await sleep(delay);
                  }
                  
                  try {
-                      // API 키는 런타임에 플랫폼에서 주입됩니다.
-                      const apiKey = GEMINI_API_KEY; 
-                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                     const apiKey = GEMINI_API_KEY; 
+                     if (!apiKey || apiKey === "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4") { // ⚠️ Placeholder check
+                         throw new Error("API 키가 설정되지 않았습니다. 스크립트 상단의 GEMINI_API_KEY를 확인하세요.");
+                     }
+                     
+                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
-                      const payload = {
-                           contents: [{ parts: [{ text: analysisPrompt }] }],
-                           tools: [{ "google_search": {} }],
-                           systemInstruction: {
-                               parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-                           },
-                       };
-                       
-                       const response = await fetch(apiUrl, {
-                           method: 'POST',
-                           headers: { 'Content-Type': 'application/json' },
-                           body: JSON.stringify(payload)
-                       });
-                       
-                       if (!response.ok) {
-                           throw new Error(`HTTP 오류: ${response.status}`);
-                       }
+                     const payload = {
+                         contents: [{ parts: [{ text: analysisPrompt }] }],
+                         // ⚠️ Grounding/System instructions는 API Key가 실제 Enterprise 등급일 때만 작동할 수 있습니다.
+                         // tools: [{ "google_search": {} }], 
+                         systemInstruction: {
+                             parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
+                         },
+                     };
+                     
+                     const response = await fetch(apiUrl, {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify(payload)
+                     });
+                     
+                     if (!response.ok) {
+                         const errorBody = await response.json();
+                         console.error("Gemini API Error:", errorBody);
+                         const errorMsg = errorBody?.error?.message || `HTTP 오류: ${response.status}`;
+                         throw new Error(errorMsg);
+                     }
 
-                       const result = await response.json();
-                       const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                       
-                       // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
-                       if (analysisText) {
-                            resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
-                            lucide.createIcons();
-                            return; // 성공 시 함수 종료
-                       } else {
-                            throw new Error("응답 내용 누락");
-                       }
+                     const result = await response.json();
+                     const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                     
+                     if (analysisText) {
+                         if (typeof marked !== 'undefined') {
+                             resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
+                         } else {
+                             // Marked.js 로드 실패 시 안전하게 텍스트만 표시
+                             resultElement.innerHTML = `<pre class="p-4 bg-gray-50 rounded-xl shadow-inner whitespace-pre-wrap">${analysisText.replace(/\n/g, '<br>')}</pre>`;
+                         }
+                         lucide.createIcons();
+                         return; 
+                     } else {
+                         throw new Error("응답 내용 누락");
+                     }
 
                  } catch (error) {
-                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
-                      
-                      if (isRetryable && attempts < maxAttempts) {
-                           resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-                           continue;
-                      } else {
-                           // 최종 실패
-                           resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-                           return;
-                      }
+                     const isRetryable = error.message.includes('503') || error.message.includes('429');
+                     
+                     if (isRetryable && attempts < maxAttempts) {
+                         resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
+                         continue;
+                     } else {
+                         resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
+                         return;
+                     }
                  }
              } // end while
              resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
         }
         window.analyzePerformance = analyzePerformance;
 
-        
-        // --- PNG 다운로드 및 초기화 ---
-        function downloadAsPNG() {
-            const reporterName = document.getElementById('reporterName').value.trim();
-            if (!reporterName) {
-                 displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
-                 return;
-            }
-
-            // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
-    2561:             displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
-    2562:             const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
-
-    2563:             // 2. PNG 캡처 및 다운로드
-    2564:             savePromise.then((success) => {
-    2565:                  // Sheets 저장 성공 여부와 관계없이 다운로드 및 초기화 시도
-    2566:                  displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
-
-    2567:                  const captureArea = document.getElementById('dashboard-container'); 
-    2568:                  
-    2569:                  html2canvas(captureArea, {
-    2570:                      scale: 2, 
-    2571:                      logging: false,
-    2572:                      useCORS: true,
-    2573:                      allowTaint: true
-    2574:                  }).then(canvas => {
-    2575:                      const link = document.createElement('a');
-    2576:                      const today = new Date().toISOString().slice(0, 10);
-    2577:                      link.download = `영업일일보고서_${reporterName}_${today}.png`;
-    2578:                      
-    2579:                      // 다운로드 링크 설정
-    2580:                      link.href = canvas.toDataURL('image/png');
-    2581:                      
-    2582:                      // 다운로드 실행
-    2583:                      setTimeout(() => {
-    2584:                          link.click();
-    2585:                          displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-    2586:                          
-    2587:                          // 3. 다운로드 및 저장 후 최종 초기화
-    2588:                          resetAllInputs();
-    2589:                      }, 500);
-
-
-    2590:                  }).catch(error => {
-    2591:                      console.error('Error capturing dashboard:', error);
-    2592:                      // 초기화는 다운로드 실패와 무관하게 실행
-    2593:                      resetAllInputs();
-    2594:                      displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
-  2595:                  });
-    2596:             });
-    2597:         }
-    2598:         window.downloadAsPNG = downloadAsPNG;
-    2599:         
-    2600:         // --- 커스텀 메시지 표시 함수 ---
-    2601:         function displayMessage(message, type) {
-    2602:             const statusElement = document.getElementById('saveStatus');
-    2603:             statusElement.textContent = message;
-    2604:             statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-    2605:         
-    2606:             // 일정 시간 후 메시지 초기화
-    2607:             if (type !== 'info') {
-    2608:                 setTimeout(() => {
-    2609:                     statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-    2610:                     statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-    2611:                 }, 8000);
-    2612:             }
-    2613:         }
-    2614:         window.displayMessage = displayMessage;
-    2615:         
-    2616:         // --- 드래그 앤 드롭 로직 ---
-    2617:         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
-    2618:         function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
-    2619:         function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
-    2620:         function handleDrop(event) { 
-    2621:             event.preventDefault(); 
-    2622:             event.currentTarget.classList.remove('drag-hover'); 
-    2623:             const data = event.dataTransfer.getData('text/plain'); 
-  2624:             const draggedElement = document.getElementById(data); 
-    2625:             if (draggedElement) { 
-    2626:                 
-    2627:                 if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
-    2628:                     event.currentTarget.innerHTML = '';
-    2629:                 }
-
-    2630:                 if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-    2631:                      displayMessage('이미 추가된 활동입니다.', 'info');
-    2632:                      draggedElement.classList.remove('dragging');
-    2633:                      return;
-    2634:                 }
-    2635:                 
-    2636:                 const clone = draggedElement.cloneNode(true);
-    2637:                 clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
-  2638:                 clone.dataset.originalId = draggedElement.id; 
-    2639:                 clone.draggable = false; 
-    2640:                 clone.style.cursor = 'default';
-    2641:                 clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
-    2642:                 clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
-    2643:                 
-    2644:                 const summaryDiv = draggedElement.querySelector('.font-semibold');
-    2645:                 const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
-    2646:                 
-    2647:                 const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
-    2648:                 
-    2649:                 clone.innerHTML = `<div class="flex justify-between items-center">
-    2650:                              <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-    2651:                              <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-    2652:                             </div>
-    2653:                             <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
-    2654:                 
-    2655:                 event.currentTarget.appendChild(clone);
-    2656:                 draggedElement.classList.remove('dragging');
-    2657:                 // NOTE: 로컬 환경에서는 Sheets에 반영된 활동만 남겨야 하지만, Sheets 연동을 복잡하게 하지 않기 위해 로컬에서만 유지합니다.
-    2658:                 // 원본 활동을 목록에서 제거하지 않아야 여러 계획에 연결 가능
-    2659:                 // dragSource.removeChild(draggedElement); // 원본은 유지
-    2660:             } 
-    2661:         }
-    2662:         window.handleDragStart = handleDragStart;
-    2663:         window.handleDragOver = handleDragOver;
-    2664:         window.handleDragLeave = handleDragLeave;
-    2665:         window.handleDrop = handleDrop;
-    2666:         
-    2667:         // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
-    2668:         function checkPlanDropTargetEmpty() {
-    2669:             const target = document.getElementById('planDropTarget');
-    2670:             const linkedCards = target.querySelectorAll('[data-original-id]');
-    2671:             if (linkedCards.length === 0) {
-    2672:                  target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
-    2673:             }
-    2674:         }
-    2675:         window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
-
-    2676:         // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
-    2677:         // loadActivities: true일 때만 activities 배열을 덮어씁니다.
-    2678:         async function fetchSalesData(reporterName, loadActivities = false) {
-    2679:             displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
-    2680: 
-    2681:             try {
-    2682:                 const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
-    2683:                     method: 'GET',
-    2684:                     mode: 'cors'
-    2685:                 });
-    2686:                 
-  2687:                 // HTTP 오류 응답 처리
-    2688:                 if (!response.ok) {
-    2689:                      const errorBody = await response.text();
-    2690:                      console.error("Sheets API HTTP Error:", response.status, errorBody);
-    2691:                      throw new Error(`HTTP 오류: ${response.status}`);
-    2692:                 }
-
-    2693:                 const data = await response.json();
-
-    2694:                 if (data.status === 'success' && data.message) {
-    2695:                      const fetchedData = data.message;
-
-    2696:                      // 1. KPI 업데이트 (항상)
-    2697:                      const monthly = fetchedData.monthlyKPI || {};
-    2698:                      dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
-    2699:                      dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
-    2700:                      dashboardData.chartData.activityCounts = monthly.activityCounts || {};
-    2701:                      
-    2702:                      // 2. 활동 목록 업데이트 (요청 시에만)
-    2703:                      if (loadActivities) {
-    2704:                          dashboardData.activities = fetchedData.activities || [];
-    2705:                          dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
-    2706:                      }
-
-    2707:                      // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
-    2708:                      // Sheets에서 계산된 오늘 KPI 값만 업데이트
-    2709:                      dashboardData.performance.totalRevenue = fetchedData.todaySummaries
-    2710:                          .filter(s => s.type === 'revenue')
-    2711:                          .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-    2712:                           
-    2713:                      dashboardData.performance.totalContracts = fetchedData.todaySummaries
-    2714:                          .filter(s => s.type === 'contract')
-    2715:                          .length;
-
-    2716:                      // 4. UI 갱신
-    2717:                      renderActivityAndPlanLists(); 
-    2718:                      updateDashboardUI();
-    2719:                      displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
-    2720:                      return true;
-    2721:                 } else {
-    2722:                      console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
-    2723:                      displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
-    2724:                      return false;
-    2725:                 }
-    2726:                 
-    2727:                 // NOTE: loadActivities가 false일 경우 dashboardData.activities는 덮어쓰지 않고 기존 로컬 데이터를 유지합니다.
-    2728:                 
-    2729:             } catch (error) {
-    2730:                 console.error("Sheets Read Error:", error);
-    2731:                 // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
-    2732:                 displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
-    2733:                 updateDashboardUI(); 
-    2734:                 return false;
-    2735:             }
-    2736:         }
-    2737:         window.fetchSalesData = fetchSalesData;
-
-
-    2738:         // --- Google Sheets로 데이터 전송 핵심 함수 ---
-    2739:         async function sendDataToSheets(action, dataPayload) {
-    2740:             const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
-    2741:             
-    2742:             if (!SHEETS_URL) {
-    2743:                 console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
-    2744:                 return false;
-    2745:             }
-
-    2746:             try {
-    2747:                 const response = await fetch(SHEETS_API_URL, {
-    2748:                     method: 'POST',
-  2749:                     mode: 'no-cors', 
-    2750:                     headers: { 'Content-Type': 'application/json' },
-    2751:                     body: JSON.stringify({ action: action, data: dataPayload })
-    2752:                 });
-
-    2753:                 console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
-    2754:                 return true;
-
-    2755:             } catch (error) {
-    2756:                 console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
-    2757:                 displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
-    2758:                 return false;
-    2759:             }
-    2760:         }
-    2761:         window.sendDataToSheets = sendDataToSheets;
-
-    2762:         
-    2763:         // --- LLM 인사이트 분석 (Gemini API 호출) ---
-    2764:         async function analyzePerformance() {
-    2765:              const reporterName = document.getElementById('reporterName').value.trim();
-    2766:              const totalRevenueToday = dashboardData.performance.totalRevenue;
-  2767:              const totalContractsToday = dashboardData.performance.totalContracts;
-    2768:              const activityCounts = dashboardData.chartData.activityCounts;
-    2769:              
-    2770:              if (!reporterName) {
-    2771:                  displayMessage('⚠️ AI 분석을 시작하려면 먼저 보고자 이름을 선택해야 합니다.', 'error');
-    2772:                  return;
-    2773:              }
-
-    2774:              if (totalRevenueToday === 0 && totalContractsToday === 0 && Object.keys(activityCounts).length === 0) {
-    2775:                  displayMessage('⚠️ 오늘 실적 및 활동 내역이 없어서 분석할 데이터가 부족합니다.', 'error');
-    2776:                  return;
-    2777:              }
-
-    2778:              // Mock 데이터 생성 (어제 실적 가정: 오늘보다 5% 낮고, 계약 1건 적음)
-    2779:              const yesterdayRevenue = Math.max(0, Math.round(totalRevenueToday * 0.95));
-    2780:              const yesterdayContracts = Math.max(0, totalContractsToday - 1);
-
-    2781:              const analysisPrompt = `
-    2782:                  당신은 영업 사원(${reporterName})의 일일 성과를 분석하는 전문 AI 분석가입니다.
-    2783:                  오늘의 성과와 가상의 어제 성과를 비교 분석하고, 현재 영업 활동 유형을 고려하여 향후 개선할 수 있는 액션 플랜을 제시해주세요.
-
-    2784:                  --- 데이터 ---
-    2785:                  1. 보고자: ${reporterName}
-    2786:                  2. 오늘 매출: ${totalRevenueToday.toLocaleString()}원
-    2787:                  3. 오늘 계약 건수: ${totalContractsToday}건
-    2788:                  4. 어제 (가상) 매출: ${yesterdayRevenue.toLocaleString()}원
-    2789:                  5. 어제 (가상) 계약 건수: ${yesterdayContracts}건
-    2790:                  6. 오늘 주요 활동 건수: ${JSON.stringify(activityCounts)}
-
-    2791:                  --- 분석 요청 ---
-    2792:                  1. 성과 요약: 오늘 실적 변화(매출, 계약 건수)를 어제와 비교하여 핵심적으로 요약해주세요.
-    2793:                  2. 활동 분석: 가장 높은 비중을 차지하는 활동 유형에 대한 간략한 평가를 제공해주세요.
-    2794:                  3. 액션 플랜: 성과를 극대화하거나 부족한 부분을 개선하기 위한 구체적인 액션 플랜 2~3가지를 제시해주세요.
-    2795:                  결과는 마크다운 형식으로 작성해주십시오.
-    2796:                 `;
-
-    2797:              const resultElement = document.getElementById('aiAnalysisResult');
-    2798:              resultElement.innerHTML = '<div class="text-center py-4 text-blue-600 font-semibold flex items-center justify-center"><i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i>AI가 성과를 분석 중입니다... (최대 10초 소요)</div>';
-    2799:              lucide.createIcons();
-    2800:              
-    2801:              let attempts = 0;
-    2802:              const maxAttempts = 5;
-
-    2803:              while (attempts < maxAttempts) {
-    2804:                  attempts++;
-    2805:                  let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
-    2806:                  
-    2807:                  if (delay > 0) {
-    2808:                       await sleep(delay);
-    2809:                  }
-    2810:                  
-    2811:                  try {
-    2812:                      // API 키는 런타임에 플랫폼에서 주입됩니다.
-    2813:                      const apiKey = GEMINI_API_KEY; 
-    2814:                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-    2815:                      const payload = {
-    2816:                          contents: [{ parts: [{ text: analysisPrompt }] }],
-    2817:                          tools: [{ "google_search": {} }],
-    2818:                          systemInstruction: {
-    2819:                              parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-    2820:                          },
-    2821:                      };
-    2822:                      
-    2823:                      const response = await fetch(apiUrl, {
-    2824:                          method: 'POST',
-    2825:                          headers: { 'Content-Type': 'application/json' },
-    2826:                          body: JSON.stringify(payload)
-    2827:                      });
-    2828:                      
-    2829:                      if (!response.ok) {
-    2830:                          throw new Error(`HTTP 오류: ${response.status}`);
-    2831:                      }
-
-    2832:                      const result = await response.json();
-    2833:                      const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    2834:                      
-    2835:                      // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
-    2836:                      if (analysisText) {
-    2837:                          resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
-    2838:                          lucide.createIcons();
-    2839:                          return; // 성공 시 함수 종료
-    2840:                      } else {
-    2841:                          throw new Error("응답 내용 누락");
-    2842:                      }
-
-    2843:                  } catch (error) {
-    2844:                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
-    2845:                      
-    2846:                      if (isRetryable && attempts < maxAttempts) {
-    2847:                          resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-    2848:                          continue;
-    2849:                      } else {
-    2850:                          // 최종 실패
-    2851:                          resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-    2852:                          return;
-    2853:                      }
-    2854:                  }
-    2855:              } // end while
-    2856:              resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
-    2857:         }
-    2858:         window.analyzePerformance = analyzePerformance;
-
-    2859:         
-    2860:         // --- PNG 다운로드 및 초기화 ---
-    2861:         function downloadAsPNG() {
-    2862:             const reporterName = document.getElementById('reporterName').value.trim();
-    2863:             if (!reporterName) {
-    2864:                  displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
-    2865:                  return;
-    2866:             }
-
-    2867:             // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
-    2868:             displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
-    2869:             const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
-
-    2870:             // 2. PNG 캡처 및 다운로드
-    2871:             savePromise.then((success) => {
-    2872:                  // Sheets 저장 성공 여부와 관계없이 다운로드 및 초기화 시도
-    2873:                  displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
-
-    2874:                  const captureArea = document.getElementById('dashboard-container'); 
-    2875:                  
-    2876:                  html2canvas(captureArea, {
-    2877:                      scale: 2, 
-    2878:                      logging: false,
-    2879:                      useCORS: true,
-    2880:                      allowTaint: true
-    2881:                  }).then(canvas => {
-    2882:                      const link = document.createElement('a');
-    2883:                      const today = new Date().toISOString().slice(0, 10);
-    2884:                      link.download = `영업일일보고서_${reporterName}_${today}.png`;
-    2885:                      
-    2886:                      // 다운로드 링크 설정
-    2887:                      link.href = canvas.toDataURL('image/png');
-    2888:                      
-    2889:                      // 다운로드 실행
-    2890:                      setTimeout(() => {
-    2891:                          link.click();
-    2892:                          displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-    2893:                          
-    2894:                          // 3. 다운로드 및 저장 후 최종 초기화
-    2895:                          resetAllInputs();
-    2896:                      }, 500);
-
-
-    2897:                  }).catch(error => {
-    2898:                      console.error('Error capturing dashboard:', error);
-    2899:                      // 초기화는 다운로드 실패와 무관하게 실행
-    2900:                      resetAllInputs();
-    2901:                      displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
-    2902:                  });
-    2903:             });
-    2904:         }
-    2905:         window.downloadAsPNG = downloadAsPNG;
-    2906:         
-    2907:         // --- 커스텀 메시지 표시 함수 ---
-    2908:         function displayMessage(message, type) {
-    2909:             const statusElement = document.getElementById('saveStatus');
-    2910:             statusElement.textContent = message;
-    2911:             statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-    2912:         
-    2913:             // 일정 시간 후 메시지 초기화
-    2914:             if (type !== 'info') {
-    2915:                 setTimeout(() => {
-    2916:                     statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-    2917:                     statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-    2918:                 }, 8000);
-    2919:             }
-    2920:         }
-    2921:         window.displayMessage = displayMessage;
-    2922:         
-    2923:         // --- 드래그 앤 드롭 로직 ---
-    2924:         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
-    2925:         function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
-    2926:         function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
-    2927:         function handleDrop(event) { 
-    2928:             event.preventDefault(); 
-    2929:             event.currentTarget.classList.remove('drag-hover'); 
-    2930:             const data = event.dataTransfer.getData('text/plain'); 
-    2931:             const draggedElement = document.getElementById(data); 
-    2932:             if (draggedElement) { 
-    2933:                 
-    2934:                 if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
-    2935:                     event.currentTarget.innerHTML = '';
-    2936:                 }
-
-    2937:                 if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-    2938:                      displayMessage('이미 추가된 활동입니다.', 'info');
-    2939:                      draggedElement.classList.remove('dragging');
-    2940:                      return;
-    2941:                 }
-    2942:                 
-    2943:                 const clone = draggedElement.cloneNode(true);
-    2944:                 clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
-    2945:                 clone.dataset.originalId = draggedElement.id; 
-    2946:                 clone.draggable = false; 
-    2947:                 clone.style.cursor = 'default';
-    2461:                 clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
-    2462:                 clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
-    2463:                 
-    2464:                 const summaryDiv = draggedElement.querySelector('.font-semibold');
-    2465:                 const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
-    2466:                 
-    2467:                 const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
-    2468:                 
-    2469:                 clone.innerHTML = `<div class="flex justify-between items-center">
-    2470:                              <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-    2471:                              <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-    2472:                             </div>
-    2473:                             <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
-    2474:                 
-    2475:                 event.currentTarget.appendChild(clone);
-    2476:                 draggedElement.classList.remove('dragging');
-    2477:                 // NOTE: 로컬 환경에서는 Sheets에 반영된 활동만 남겨야 하지만, Sheets 연동을 복잡하게 하지 않기 위해 로컬에서만 유지합니다.
-    2478:                 // 원본 활동을 목록에서 제거하지 않아야 여러 계획에 연결 가능
-    2479:                 // dragSource.removeChild(draggedElement); // 원본은 유지
-    2480:             } 
-    2481:         }
-    2482:         window.handleDragStart = handleDragStart;
-    2483:         window.handleDragOver = handleDragOver;
-    2484:         window.handleDragLeave = handleDragLeave;
-    2485:         window.handleDrop = handleDrop;
-    2486:         
-    2487:         // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
-    2488:         function checkPlanDropTargetEmpty() {
-    2489:             const target = document.getElementById('planDropTarget');
-    2490:             const linkedCards = target.querySelectorAll('[data-original-id]');
-    2491:             if (linkedCards.length === 0) {
-    2492:                  target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
-    2493:             }
-    2494:         }
-    2495:         window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
-
-    2496:         // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
-    2497:         // loadActivities: true일 때만 activities 배열을 덮어씁니다.
-    2498:         async function fetchSalesData(reporterName, loadActivities = false) {
-    2499:             displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
-    2500: 
-    2501:             try {
-    2502:                 const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
-    2503:                     method: 'GET',
-    2504:                     mode: 'cors'
-    2505:                 });
-    2506:                 
-    2507:                 // HTTP 오류 응답 처리
-    2508:                 if (!response.ok) {
-    2509:                      const errorBody = await response.text();
-    2510:                      console.error("Sheets API HTTP Error:", response.status, errorBody);
-    2511:                      throw new Error(`HTTP 오류: ${response.status}`);
-    2512:                 }
-
-    2513:                 const data = await response.json();
-
-    2514:                 if (data.status === 'success' && data.message) {
-    2515:                      const fetchedData = data.message;
-
-    2516:                      // 1. KPI 업데이트 (항상)
-    2517:                      const monthly = fetchedData.monthlyKPI || {};
-    2518:                      dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
-    2519:                      dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
-    2520:                      dashboardData.chartData.activityCounts = monthly.activityCounts || {};
-    2521:                      
-    2522:                      // 2. 활동 목록 업데이트 (요청 시에만)
-    2523:                      if (loadActivities) {
-    2524:                          dashboardData.activities = fetchedData.activities || [];
-    2525:                          dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
-    2526:                      }
-
-    2527:                      // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
-    2528:                      // Sheets에서 계산된 오늘 KPI 값만 업데이트
-    2529:                      dashboardData.performance.totalRevenue = fetchedData.todaySummaries
-    2530:                          .filter(s => s.type === 'revenue')
-    2531:                          .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-    2532:                           
-    2533:                      dashboardData.performance.totalContracts = fetchedData.todaySummaries
-    2534:                          .filter(s => s.type === 'contract')
-    2535:                          .length;
-
-    2536:                      // 4. UI 갱신
-    2537:                      renderActivityAndPlanLists(); 
-    2538:                      updateDashboardUI();
-    2539:                      displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
-    2540:                      return true;
-    2541:                 } else {
-    2542:                      console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
-    2543:                      displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
-    2544:                      return false;
-    2545:                 }
-    2546:                 
-    2547:                 // NOTE: loadActivities가 false일 경우 dashboardData.activities는 덮어쓰지 않고 기존 로컬 데이터를 유지합니다.
-    2548:                 
-    2549:             } catch (error) {
-    2550:                 console.error("Sheets Read Error:", error);
-    2551:                 // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
-    2552:                 displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
-    2553:                 updateDashboardUI(); 
-    2554:                 return false;
-    2555:             }
-    2556:         }
-    2557:         window.fetchSalesData = fetchSalesData;
-
-
-    2558:         // --- Google Sheets로 데이터 전송 핵심 함수 ---
-    2559:         async function sendDataToSheets(action, dataPayload) {
-    2560:             const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
-    2561:             
-    2562:             if (!SHEETS_URL) {
-    2563:                 console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
-    2564:                 return false;
-    2565:             }
-
-    2566:             try {
-    2567:                 const response = await fetch(SHEETS_API_URL, {
-    2568:                     method: 'POST',
-    2569:                     mode: 'no-cors', 
-    2570:                     headers: { 'Content-Type': 'application/json' },
-    2571:                     body: JSON.stringify({ action: action, data: dataPayload })
-    2572:                 });
-
-    2573:                 console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
-    2574:                 return true;
-
-    2575:             } catch (error) {
-    2576:                 console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
-    2577:                 displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
-    2578:                 return false;
-    2579:             }
-    2580:         }
-    2581:         window.sendDataToSheets = sendDataToSheets;
-
-    2582:         
-    2583:         // --- LLM 인사이트 분석 (Gemini API 호출) ---
-    2584:         async function analyzePerformance() {
-    2585:              const reporterName = document.getElementById('reporterName').value.trim();
-    2586:              const totalRevenueToday = dashboardData.performance.totalRevenue;
-    2587:              const totalContractsToday = dashboardData.performance.totalContracts;
-    2588:              const activityCounts = dashboardData.chartData.activityCounts;
-    2589:              
-    2590:              if (!reporterName) {
-    2591:                  displayMessage('⚠️ AI 분석을 시작하려면 먼저 보고자 이름을 선택해야 합니다.', 'error');
-    2592:                  return;
-    2593:              }
-
-    2594:              if (totalRevenueToday === 0 && totalContractsToday === 0 && Object.keys(activityCounts).length === 0) {
-    2595:                  displayMessage('⚠️ 오늘 실적 및 활동 내역이 없어서 분석할 데이터가 부족합니다.', 'error');
-    2596:                  return;
-    2597:              }
-
-    2598:              // Mock 데이터 생성 (어제 실적 가정: 오늘보다 5% 낮고, 계약 1건 적음)
-    2599:              const yesterdayRevenue = Math.max(0, Math.round(totalRevenueToday * 0.95));
-    2600:              const yesterdayContracts = Math.max(0, totalContractsToday - 1);
-
-    2601:              const analysisPrompt = `
-    2602:                  당신은 영업 사원(${reporterName})의 일일 성과를 분석하는 전문 AI 분석가입니다.
-    2603:                  오늘의 성과와 가상의 어제 성과를 비교 분석하고, 현재 영업 활동 유형을 고려하여 향후 개선할 수 있는 액션 플랜을 제시해주세요.
-
-    2604:                  --- 데이터 ---
-    2605:                  1. 보고자: ${reporterName}
-    2606:                  2. 오늘 매출: ${totalRevenueToday.toLocaleString()}원
-    2607:                  3. 오늘 계약 건수: ${totalContractsToday}건
-    2608:                  4. 어제 (가상) 매출: ${yesterdayRevenue.toLocaleString()}원
-    2609:                  5. 어제 (가상) 계약 건수: ${yesterdayContracts}건
-    2610:                  6. 오늘 주요 활동 건수: ${JSON.stringify(activityCounts)}
-
-    2611:                  --- 분석 요청 ---
-    2612:                  1. 성과 요약: 오늘 실적 변화(매출, 계약 건수)를 어제와 비교하여 핵심적으로 요약해주세요.
-    2613:                  2. 활동 분석: 가장 높은 비중을 차지하는 활동 유형에 대한 간략한 평가를 제공해주세요.
-    2614:                  3. 액션 플랜: 성과를 극대화하거나 부족한 부분을 개선하기 위한 구체적인 액션 플랜 2~3가지를 제시해주세요.
-    2615:                  결과는 마크다운 형식으로 작성해주십시오.
-    2616:                 `;
-
-    2617:              const resultElement = document.getElementById('aiAnalysisResult');
-    2618:              resultElement.innerHTML = '<div class="text-center py-4 text-blue-600 font-semibold flex items-center justify-center"><i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i>AI가 성과를 분석 중입니다... (최대 10초 소요)</div>';
-    2619:              lucide.createIcons();
-    2620:              
-    2621:              let attempts = 0;
-    2622:              const maxAttempts = 5;
-
-    2623:              while (attempts < maxAttempts) {
-    2624:                  attempts++;
-    2625:                  let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
-    2626:                  
-    2627:                  if (delay > 0) {
-    2628:                       await sleep(delay);
-    2629:                  }
-    2630:                  
-    2631:                  try {
-    2632:                      // API 키는 런타임에 플랫폼에서 주입됩니다.
-    2633:                      const apiKey = GEMINI_API_KEY; 
-    2634:                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-    2635:                      const payload = {
-    2636:                          contents: [{ parts: [{ text: analysisPrompt }] }],
-    2637:                          tools: [{ "google_search": {} }],
-    2638:                          systemInstruction: {
-    2639:                              parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-    2640:                          },
-    2641:                      };
-    2642:                      
-    2643:                      const response = await fetch(apiUrl, {
-    2644:                          method: 'POST',
-    2645:                          headers: { 'Content-Type': 'application/json' },
-    2646:                          body: JSON.stringify(payload)
-    2647:                      });
-    2648:                      
-    2649:                      if (!response.ok) {
-    2650:                          throw new Error(`HTTP 오류: ${response.status}`);
-    2651:                      }
-
-    2652:                      const result = await response.json();
-    2653:                      const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    2654:                      
-    2655:                      // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
-    2656:                      if (analysisText) {
-    2657:                          resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
-    2658:                          lucide.createIcons();
-    2659:                          return; // 성공 시 함수 종료
-    2660:                      } else {
-    2661:                          throw new Error("응답 내용 누락");
-    2662:                      }
-
-    2663:                  } catch (error) {
-    2664:                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
-    2665:                      
-    2666:                      if (isRetryable && attempts < maxAttempts) {
-    2667:                          resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-    2668:                          continue;
-    2669:                      } else {
-    2670:                          // 최종 실패
-    2671:                          resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-    2672:                          return;
-    2673:                      }
-    2674:                  }
-    2675:              } // end while
-    2676:              resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
-    2677:         }
-    2678:         window.analyzePerformance = analyzePerformance;
-
-    2679:         
-    2680:         // --- PNG 다운로드 및 초기화 ---
-    2681:         function downloadAsPNG() {
-    2682:             const reporterName = document.getElementById('reporterName').value.trim();
-    2683:             if (!reporterName) {
-    2684:                  displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
-    2685:                  return;
-    2686:             }
-
-    2687:             // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
-    2688:             displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
-    2689:             const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
-
-    2690:             // 2. PNG 캡처 및 다운로드
-    2691:             savePromise.then((success) => {
-    2692:                  // Sheets 저장 성공 여부와 관계없이 다운로드 및 초기화 시도
-    2693:                  displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
-
-    2694:                  const captureArea = document.getElementById('dashboard-container'); 
-    2695:                  
-    2696:                  html2canvas(captureArea, {
-    2697:                      scale: 2, 
-    2698:                      logging: false,
-    2699:                      useCORS: true,
-    2700:                      allowTaint: true
-    2701:                  }).then(canvas => {
-    2702:                      const link = document.createElement('a');
-    2703:                      const today = new Date().toISOString().slice(0, 10);
-    2704:                      link.download = `영업일일보고서_${reporterName}_${today}.png`;
-    2705:                      
-    2706:                      // 다운로드 링크 설정
-    2707:                      link.href = canvas.toDataURL('image/png');
-    2708:                      
-    2709:                      // 다운로드 실행
-    2710:                      setTimeout(() => {
-    2711:                          link.click();
-    2712:                          displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-    2713:                          
-    2714:                          // 3. 다운로드 및 저장 후 최종 초기화
-    2715:                          resetAllInputs();
-    2716:                      }, 500);
-
-
-    2717:                  }).catch(error => {
-    2718:                      console.error('Error capturing dashboard:', error);
-    2719:                      // 초기화는 다운로드 실패와 무관하게 실행
-    2720:                      resetAllInputs();
-    2721:                      displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
-    2722:                  });
-    2723:             });
-    2724:         }
-    2725:         window.downloadAsPNG = downloadAsPNG;
-    2726:         
-    2727:         // --- 커스텀 메시지 표시 함수 ---
-    2728:         function displayMessage(message, type) {
-    2729:             const statusElement = document.getElementById('saveStatus');
-    2730:             statusElement.textContent = message;
-    2731:             statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-    2732:         
-    2733:             // 일정 시간 후 메시지 초기화
-    2734:             if (type !== 'info') {
-    2735:                 setTimeout(() => {
-    2736:                     statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-    2737:                     statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-    2738:                 }, 8000);
-    2739:             }
-    2740:         }
-    2741:         window.displayMessage = displayMessage;
-    2742:         
-    2743:         // --- 드래그 앤 드롭 로직 ---
-    2744:         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
-  2745:         function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
-    2746:         function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
-    2747:         function handleDrop(event) { 
-    2748:             event.preventDefault(); 
-    2749:             event.currentTarget.classList.remove('drag-hover'); 
-    2750:             const data = event.dataTransfer.getData('text/plain'); 
-    2751:             const draggedElement = document.getElementById(data); 
-    2752:             if (draggedElement) { 
-    2753:                 
-    2754:                 if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
-    2755:                     event.currentTarget.innerHTML = '';
-    2756:                 }
-
-    2757:                 if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-    2758:                      displayMessage('이미 추가된 활동입니다.', 'info');
-    2759:                      draggedElement.classList.remove('dragging');
-    2760:                      return;
-    2761:                 }
-    2762:                 
-    2763:                 const clone = draggedElement.cloneNode(true);
-    2764:                 clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
-    2765:                 clone.dataset.originalId = draggedElement.id; 
-    2766:                 clone.draggable = false; 
-    2767:                 clone.style.cursor = 'default';
-    2768:                 clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
-    2769:                 clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
-    2770:                 
-    2771:                 const summaryDiv = draggedElement.querySelector('.font-semibold');
-    2772:                 const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
-    2773:                 
-    2774:                 const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
-    2775:                 
-    2776:                 clone.innerHTML = `<div class="flex justify-between items-center">
-    2777:                              <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-    2778:                              <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-    2779:                             </div>
-    2780:                             <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
-    2781:                 
-    2782:                 event.currentTarget.appendChild(clone);
-    2783:                 draggedElement.classList.remove('dragging');
-    2784:                 // NOTE: 로컬 환경에서는 Sheets에 반영된 활동만 남겨야 하지만, Sheets 연동을 복잡하게 하지 않기 위해 로컬에서만 유지합니다.
-    2785:                 // 원본 활동을 목록에서 제거하지 않아야 여러 계획에 연결 가능
-    2786:                 // dragSource.removeChild(draggedElement); // 원본은 유지
-    2787:             } 
-    2788:         }
-    2789:         window.handleDragStart = handleDragStart;
-    2790:         window.handleDragOver = handleDragOver;
-    2791:         window.handleDragLeave = handleDragLeave;
-    2792:         window.handleDrop = handleDrop;
-    2793:         
-    2794:         // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
-    2795:         function checkPlanDropTargetEmpty() {
-    2796:             const target = document.getElementById('planDropTarget');
-    2797:             const linkedCards = target.querySelectorAll('[data-original-id]');
-    2798:             if (linkedCards.length === 0) {
-    2799:                  target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
-    2800:             }
-    2801:         }
-    2802:         window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
-
-    2803:         // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
-    2804:         // loadActivities: true일 때만 activities 배열을 덮어씁니다.
-    2805:         async function fetchSalesData(reporterName, loadActivities = false) {
-    2806:             displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
-    2807: 
-    2808:             try {
-    2809:                 const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
-    2810:                     method: 'GET',
-    2811:                     mode: 'cors'
-    2812:                 });
-    2813:                 
-    2814:                 // HTTP 오류 응답 처리
-  2815:                 if (!response.ok) {
-    2816:                      const errorBody = await response.text();
-    2817:                      console.error("Sheets API HTTP Error:", response.status, errorBody);
-    2818:                      throw new Error(`HTTP 오류: ${response.status}`);
-    2819:                 }
-
-    2820:                 const data = await response.json();
-
-    2821:                 if (data.status === 'success' && data.message) {
-    2822:                      const fetchedData = data.message;
-
-    2823:                      // 1. KPI 업데이트 (항상)
-    2824:                      const monthly = fetchedData.monthlyKPI || {};
-    2825:                      dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
-    2826:                      dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
-    2827:                      dashboardData.chartData.activityCounts = monthly.activityCounts || {};
-    2828:                      
-    2829:                      // 2. 활동 목록 업데이트 (요청 시에만)
-    2830:                      if (loadActivities) {
-    2831:                          dashboardData.activities = fetchedData.activities || [];
-    2832:                          dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
-    2833:                      }
-
-    2834:                      // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
-    2835:                      // Sheets에서 계산된 오늘 KPI 값만 업데이트
-    2836:                      dashboardData.performance.totalRevenue = fetchedData.todaySummaries
-    2837:                          .filter(s => s.type === 'revenue')
-    2838:                          .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-    2839:                           
-    2840:                      dashboardData.performance.totalContracts = fetchedData.todaySummaries
-    2841:                          .filter(s => s.type === 'contract')
-    2842:                          .length;
-
-    2843:                      // 4. UI 갱신
-    2844:                      renderActivityAndPlanLists(); 
-    2845:                      updateDashboardUI();
-    2846:                      displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
-    2847:                      return true;
-    2848:                 } else {
-    2849:                      console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
-    2850:                      displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
-    2851:                      return false;
-    2852:                 }
-    2853:                 
-    2854:                 // NOTE: loadActivities가 false일 경우 dashboardData.activities는 덮어쓰지 않고 기존 로컬 데이터를 유지합니다.
-    2855:                 
-    2856:             } catch (error) {
-    2857:                 console.error("Sheets Read Error:", error);
-    2858:                 // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
-    2859:                 displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
-    2860:                 updateDashboardUI(); 
-    2861:                 return false;
-    2862:             }
-    2863:         }
-    2864:         window.fetchSalesData = fetchSalesData;
-
-    2865:         // --- Google Sheets로 데이터 전송 핵심 함수 ---
-    2866:         async function sendDataToSheets(action, dataPayload) {
-    2867:             const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
-    2868:             
-    2869:             if (!SHEETS_URL) {
-    2870:                 console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
-    2871:                 return false;
-    2872:             }
-
-    2873:             try {
-    2874:                 const response = await fetch(SHEETS_API_URL, {
-    2875:                     method: 'POST',
-    2876:                     mode: 'no-cors', 
-    2877:                     headers: { 'Content-Type': 'application/json' },
-    2878:                     body: JSON.stringify({ action: action, data: dataPayload })
-    2879:                 });
-
-    2880:                 console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
-    2881:                 return true;
-
-    2882:             } catch (error) {
-    2883:                 console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
-    2884:                 displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
-    2885:                 return false;
-    2886:             }
-    2887:         }
-    2888:         window.sendDataToSheets = sendDataToSheets;
-
-    2889:         
-    2890:         // --- LLM 인사이트 분석 (Gemini API 호출) ---
-    2891:         async function analyzePerformance() {
-    2892:              const reporterName = document.getElementById('reporterName').value.trim();
-    2893:              const totalRevenueToday = dashboardData.performance.totalRevenue;
-    2894:              const totalContractsToday = dashboardData.performance.totalContracts;
-    2895:              const activityCounts = dashboardData.chartData.activityCounts;
-    2896:              
-    2897:              if (!reporterName) {
-    2898:                  displayMessage('⚠️ AI 분석을 시작하려면 먼저 보고자 이름을 선택해야 합니다.', 'error');
-    2899:                  return;
-    2900:              }
-
-    2901:              if (totalRevenueToday === 0 && totalContractsToday === 0 && Object.keys(activityCounts).length === 0) {
-    2902:                  displayMessage('⚠️ 오늘 실적 및 활동 내역이 없어서 분석할 데이터가 부족합니다.', 'error');
-    2903:                  return;
-    2904:              }
-
-    2905:              // Mock 데이터 생성 (어제 실적 가정: 오늘보다 5% 낮고, 계약 1건 적음)
-    2906:              const yesterdayRevenue = Math.max(0, Math.round(totalRevenueToday * 0.95));
-    2907:              const yesterdayContracts = Math.max(0, totalContractsToday - 1);
-
-    2908:              const analysisPrompt = `
-    2909:                  당신은 영업 사원(${reporterName})의 일일 성과를 분석하는 전문 AI 분석가입니다.
-    2910:                  오늘의 성과와 가상의 어제 성과를 비교 분석하고, 현재 영업 활동 유형을 고려하여 향후 개선할 수 있는 액션 플랜을 제시해주세요.
-
-    2911:                  --- 데이터 ---
-    2912:                  1. 보고자: ${reporterName}
-    2913:                  2. 오늘 매출: ${totalRevenueToday.toLocaleString()}원
-    2914:                  3. 오늘 계약 건수: ${totalContractsToday}건
-    2915:                  4. 어제 (가상) 매출: ${yesterdayRevenue.toLocaleString()}원
-    2916:                  5. 어제 (가상) 계약 건수: ${yesterdayContracts}건
-    2917:                  6. 오늘 주요 활동 건수: ${JSON.stringify(activityCounts)}
-
-    2918:                  --- 분석 요청 ---
-    2919:                  1. 성과 요약: 오늘 실적 변화(매출, 계약 건수)를 어제와 비교하여 핵심적으로 요약해주세요.
-    2920:                  2. 활동 분석: 가장 높은 비중을 차지하는 활동 유형에 대한 간략한 평가를 제공해주세요.
-    2921:                  3. 액션 플랜: 성과를 극대화하거나 부족한 부분을 개선하기 위한 구체적인 액션 플랜 2~3가지를 제시해주세요.
-    2922:                  결과는 마크다운 형식으로 작성해주십시오.
-    2923:                 `;
-
-    2924:              const resultElement = document.getElementById('aiAnalysisResult');
-    2925:              resultElement.innerHTML = '<div class="text-center py-4 text-blue-600 font-semibold flex items-center justify-center"><i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i>AI가 성과를 분석 중입니다... (최대 10초 소요)</div>';
-    2926:              lucide.createIcons();
-    2927:              
-    2928:              let attempts = 0;
-    2929:              const maxAttempts = 5;
-
-    2930:              while (attempts < maxAttempts) {
-    2931:                  attempts++;
-    2932:                  let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
-    2933:                  
-  2934:                  if (delay > 0) {
-    2935:                       await sleep(delay);
-    2936:                  }
-    2937:                  
-    2938:                  try {
-    2939:                      // API 키는 런타임에 플랫폼에서 주입됩니다.
-    2940:                      const apiKey = GEMINI_API_KEY; 
-    2941:                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-
-    2942:                      const payload = {
-    2943:                          contents: [{ parts: [{ text: analysisPrompt }] }],
-    2944:                          tools: [{ "google_search": {} }],
-    2945:                          systemInstruction: {
-    2946:                              parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-    2947:                          },
-    2948:                      };
-    2949:                      
-    2950:                      const response = await fetch(apiUrl, {
-    2951:                          method: 'POST',
-    2952:                          headers: { 'Content-Type': 'application/json' },
-    2953:                          body: JSON.stringify(payload)
-    2954:                      });
-    2955:                      
-    2956:                      if (!response.ok) {
-    2957:                          throw new Error(`HTTP 오류: ${response.status}`);
-    2958:                      }
-
-    2959:                      const result = await response.json();
-    2960:                      const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    2961:                      
-    2962:                      // Marked.parse를 사용하여 Markdown을 HTML로 변환합니다.
-    2963:                      if (analysisText) {
-    2964:                          resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
-    2965:                          lucide.createIcons();
-    2966:                          return; // 성공 시 함수 종료
-    2967:                      } else {
-    2968:                          throw new Error("응답 내용 누락");
-    2969:                      }
-
-    2970:                  } catch (error) {
-    2971:                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
-    2972:                      
-    2973:                      if (isRetryable && attempts < maxAttempts) {
-    2974:                          resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-    2975:                          continue;
-    2976:                      } else {
-    2977:                          // 최종 실패
-    2978:                          resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-    2979:                          return;
-    2853:                      }
-    2854:                  }
-    2855:              } // end while
-    2856:              resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
-    2857:         }
-    2858:         window.analyzePerformance = analyzePerformance;
-
-    2859:         
-    2860:         // --- PNG 다운로드 및 초기화 ---
-    2861:         function downloadAsPNG() {
-    2862:             const reporterName = document.getElementById('reporterName').value.trim();
-    2863:             if (!reporterName) {
-    2864:                  displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
-    2865:                  return;
-    2866:             }
-
-    2867:             // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
-    2868:             displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
-    2869:             const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
-
-    2870:             // 2. PNG 캡처 및 다운로드
-    2871:             savePromise.then((success) => {
-    2872:                  // Sheets 저장 성공 여부와 관계없이 다운로드 및 초기화 시도
-    2873:                  displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
-
-    2874:                  const captureArea = document.getElementById('dashboard-container'); 
-    2875:                  
-    2876:                  html2canvas(captureArea, {
-    2877:                      scale: 2, 
-    2878:                      logging: false,
-    2879:                      useCORS: true,
-    2880:                      allowTaint: true
-    2881:                  }).then(canvas => {
-    2882:                      const link = document.createElement('a');
-    2883:                      const today = new Date().toISOString().slice(0, 10);
-    2884:                      link.download = `영업일일보고서_${reporterName}_${today}.png`;
-    2885:                      
-    2886:                      // 다운로드 링크 설정
-    2887:                      link.href = canvas.toDataURL('image/png');
-    2888:                      
-    2889:                      // 다운로드 실행
-    2890:                      setTimeout(() => {
-    2891:                          link.click();
-    2892:                          displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-    2893:                          
-    2894:                          // 3. 다운로드 및 저장 후 최종 초기화
-    2895:                          resetAllInputs();
-    2896:                      }, 500);
-
-
-    2897:                  }).catch(error => {
-    2898:                      console.error('Error capturing dashboard:', error);
-    2899:                      // 초기화는 다운로드 실패와 무관하게 실행
-    2900:                      resetAllInputs();
-    2901:                      displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
-    2902:                  });
-    2903:             });
-    2904:         }
-    2905:         window.downloadAsPNG = downloadAsPNG;
-    2906:         
-    2907:         // --- 커스텀 메시지 표시 함수 ---
-    2908:         function displayMessage(message, type) {
-    2909:             const statusElement = document.getElementById('saveStatus');
-    2910:             statusElement.textContent = message;
-    2911:             statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-    2912:         
-    2913:             // 일정 시간 후 메시지 초기화
-    2914:             if (type !== 'info') {
-    2915:                 setTimeout(() => {
-    2916:                     statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-    2917:                     statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-    2918:                 }, 8000);
-    2919:             }
-    2920:         }
-    2921:         window.displayMessage = displayMessage;
-    2922:         
-    2923:         // --- 드래그 앤 드롭 로직 ---
-    2924:         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
-    2925:         function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
-    2926:         function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
-    2927:         function handleDrop(event) { 
-    2928:             event.preventDefault(); 
-    2929:             event.currentTarget.classList.remove('drag-hover'); 
-    2930:             const data = event.dataTransfer.getData('text/plain'); 
-    2931:             const draggedElement = document.getElementById(data); 
-    2932:             if (draggedElement) { 
-    2933:                 
-    2934:                 if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
-    2935:                     event.currentTarget.innerHTML = '';
-    2936:                 }
-
-    2937:                 if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-    2938:                      displayMessage('이미 추가된 활동입니다.', 'info');
-    2939:                      draggedElement.classList.remove('dragging');
-    2940:                      return;
-    2941:                 }
-    2942:                 
-    2943:                 const clone = draggedElement.cloneNode(true);
-    2944:                 clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
-    2945:                 clone.dataset.originalId = draggedElement.id; 
-    2946:                 clone.draggable = false; 
-    2947:                 clone.style.cursor = 'default';
-    2948:                 clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
-    2949:                 clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
-    2950:                 
-    2951:                 const summaryDiv = draggedElement.querySelector('.font-semibold');
-    2952:                 const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
-    2953:                 
-    2954:                 const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
-    2955:                 
-    2956:                 clone.innerHTML = `<div class="flex justify-between items-center">
-    2957:                              <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-    2958:                              <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-    2959:                             </div>
- 
+        
+        // --- PNG 다운로드 및 초기화 ---
+        function downloadAsPNG() {
+            const reporterName = document.getElementById('reporterName').value.trim();
+            if (!reporterName) {
+                 displayMessage('⚠️ 보고자 이름을 먼저 선택해야 보고서를 저장하고 다운로드할 수 있습니다.', 'error');
+                 return;
+            }
+
+            // 1. Sheets에 최종 실적 데이터 저장 (비동기 완료 대기)
+            displayMessage('⏳ Sheets에 최종 실적 데이터를 저장 중입니다...', 'info');
+            const savePromise = handleSavePerformance(); // 실적 저장 및 KPI 갱신
+
+            // 2. PNG 캡처 및 다운로드
+            savePromise.then((success) => {
+                 displayMessage('⏳ 보고서 이미지를 캡처하는 중...', 'info');
+
+                 const captureArea = document.getElementById('dashboard-container'); 
+                 
+                 html2canvas(captureArea, {
+                     scale: 2, 
+                     logging: false, // 콘솔 로그 최소화
+                     useCORS: true,
+                     allowTaint: true
+                 }).then(canvas => {
+                     const link = document.createElement('a');
+                     const today = new Date().toISOString().slice(0, 10);
+                     link.download = `영업일일보고서_${reporterName}_${today}.png`;
+                     
+                     link.href = canvas.toDataURL('image/png');
+                     
+                     setTimeout(() => {
+                         link.click();
+                         displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
+                         
+                         // 3. 다운로드 및 저장 후 최종 초기화
+                         resetAllInputs();
+                     }, 500);
+                 }).catch(error => {
+                     console.error('Error capturing dashboard:', error);
+                     resetAllInputs(); // 캡처 실패 시에도 초기화는 진행
+                     displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
+                 });
+            });
+        }
+        window.downloadAsPNG = downloadAsPNG;
+        
+        // --- 커스텀 메시지 표시 함수 ---
+        function displayMessage(message, type) {
+            const statusElement = document.getElementById('saveStatus');
+            statusElement.textContent = message;
+            statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
+        
+            // 일정 시간 후 메시지 초기화
+            if (type !== 'info') {
+                setTimeout(() => {
+                    statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
+                    statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
+                }, 8000);
+            }
+        }
+        window.displayMessage = displayMessage;
+        
+        // --- 드래그 앤 드롭 로직 ---
+        function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
+        function handleDragOver(event) { event.preventDefault(); event.currentTarget.classList.add('drag-hover'); }
+        function handleDragLeave(event) { event.currentTarget.classList.remove('drag-hover'); }
+        function handleDrop(event) { 
+            event.preventDefault(); 
+            event.currentTarget.classList.remove('drag-hover'); 
+            const data = event.dataTransfer.getData('text/plain'); 
+            const draggedElement = document.getElementById(data); 
+            if (draggedElement) { 
+                
+                if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
+                    event.currentTarget.innerHTML = '';
+                }
+
+                if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
+                    displayMessage('이미 추가된 활동입니다.', 'info');
+                    draggedElement.classList.remove('dragging');
+                    return;
+                }
+                
+                const clone = draggedElement.cloneNode(true);
+                clone.id = `${draggedElement.id}-plan-link-${Date.now()}`; 
+                clone.dataset.originalId = draggedElement.id; 
+                clone.draggable = false; 
+                clone.style.cursor = 'default';
+                clone.classList.remove('dragging', 'activity-card', 'cursor-grab', 'bg-bfdbfe', 'text-1e3a8a');
+                clone.classList.add('bg-indigo-200', 'text-indigo-900', 'p-2', 'mb-1', 'rounded-md', 'text-xs');
+                
+                const summaryDiv = draggedElement.querySelector('.font-semibold');
+                const detailsText = summaryDiv ? summaryDiv.textContent : '내용 없음';
+                
+                const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
+                
+                clone.innerHTML = `<div class="flex justify-between items-center">
+                                     <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
+                                     <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
+                                   </div>
+                                   <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
+                
+                event.currentTarget.appendChild(clone);
+                draggedElement.classList.remove('dragging');
+            } 
+        }
+        window.handleDragStart = handleDragStart;
+        window.handleDragOver = handleDragOver;
+        window.handleDragLeave = handleDragLeave;
+        window.handleDrop = handleDrop;
+        
+        // 드롭 대상이 비어있는지 확인하고 플레이스홀더를 다시 표시하는 함수
+        function checkPlanDropTargetEmpty() {
+            const target = document.getElementById('planDropTarget');
+            const linkedCards = target.querySelectorAll('[data-original-id]');
+            if (linkedCards.length === 0) {
+                 target.innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
+            }
+        }
+        window.checkPlanDropTargetEmpty = checkPlanDropTargetEmpty;
+
+        // --- 전체 입력 필드 초기화 함수 ---
+        function resetAllInputs() {
+            // 1. 활동/계획 입력 초기화
+            document.getElementById('activityType').value = '';
+            document.getElementById('dynamicActivityFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
+            document.getElementById('planActivityType').value = '';
+            document.getElementById('planDropTarget').innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
+            document.getElementById('dynamicPlanFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
+
+            // 2. 실적 입력 초기화
+            document.getElementById('inputRevenueCount').value = '0';
+            document.getElementById('inputContractCount').value = '0';
+            renderRevenueFields(0); 
+            renderContractFields(0);
+
+            // 3. 로컬 데이터 초기화 (목록 비우기)
+            dashboardData.activities = [];
+            dashboardData.plans = []; // 계획도 초기화하여 새 보고서 시작
+            dashboardData.todaySummaries = [];
+            
+            // 4. UI 갱신 (빈 목록 표시)
+            renderActivityAndPlanLists();
+
+            // 5. AI 분석 결과 초기화
+            document.getElementById('aiAnalysisResult').innerHTML = '<p class="text-gray-500 text-sm">AI 분석을 시작하면 이 영역에 맞춤형 성과 리포트가 나타납니다.</p>';
+
+            // 6. KPI 초기화 (다시 로드할 데이터가 없으므로 0으로 설정)
+            dashboardData.performance = {
+                totalRevenue: 0, 
+                totalContracts: 0, 
+                revenueGoalAttainment: 0, 
+                monthlyCumulativeSales: 0, 
+                myMonthlySales: 0, 
+            };
+            dashboardData.chartData.activityCounts = {};
+            updateDashboardUI();
+            
+            displayMessage('✔️ 모든 보고서 필드가 초기화되었습니다. 새로운 보고서 작성을 시작하세요.', 'success');
+        }
+
+        // ====================================================================
+        // 2. DOMContentLoaded (페이지 로드 완료 후 실행)
+        // ====================================================================
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            
+            // 기본 UI 렌더링 (아이콘 활성화)
+            document.getElementById('userIdDisplay').textContent = currentUserId.substring(0, 12) + "..."; // ⭐️ ID가 너무 길어 축약 표시
+            lucide.createIcons();
+            
+            // --- 리스너 연결 ---
+            document.getElementById('addActivityButton').addEventListener('click', handleAddActivity);
+            document.getElementById('addPlanButton').addEventListener('click', handleAddPlan);
+            document.getElementById('savePerformanceButton').addEventListener('click', handleSavePerformance);
+            document.getElementById('analyzeButton').addEventListener('click', analyzePerformance);
+            document.getElementById('downloadButton').addEventListener('click', downloadAsPNG);
+            
+            // 활동/계획 드롭다운 변경 리스너
+            document.getElementById('activityType').addEventListener('change', renderDynamicFields);
+            document.getElementById('planActivityType').addEventListener('change', renderPlanDynamicFields);
+            
+            // 실적 건수 입력 리스너
+            document.getElementById('inputRevenueCount').addEventListener('input', (e) => {
+                const count = parseInt(e.target.value, 10);
+                if (!isNaN(count) && count >= 0) renderRevenueFields(count);
+            });
+            document.getElementById('inputContractCount').addEventListener('input', (e) => {
+                const count = parseInt(e.target.value, 10);
+                if (!isNaN(count) && count >= 0) renderContractFields(count);
+            });
+            
+            // 과거 데이터 로드 버튼 리스너
+            document.getElementById('loadPastDataBtn').addEventListener('click', () => {
+                 const name = localStorage.getItem(REPORTER_NAME_KEY);
+                 if (name) {
+                     fetchSalesData(name, true); // true: 활동 내역 포함 로드
+                 } else {
+                     displayMessage('⚠️ 먼저 보고자 이름을 선택해야 과거 내역을 불러올 수 있습니다.', 'error');
+                 }
+            });
+
+            // 보고자 이름 로드 및 리스너
+            const reporterNameSelect = document.getElementById('reporterName');
+            const savedName = localStorage.getItem(REPORTER_NAME_KEY);
+
+            if (savedName) {
+                reporterNameSelect.value = savedName;
+                // ⭐️ 페이지 로드 시 이름이 있으면 자동으로 데이터 로드 (KPI만)
+                await fetchSalesData(savedName, false); 
+            } 
+            
+            reporterNameSelect.addEventListener('change', async (event) => {
+                const selectedName = event.target.value.trim();
+                if (selectedName) {
+                    localStorage.setItem(REPORTER_NAME_KEY, selectedName);
+                    displayMessage(`✅ 보고자 이름이 ${selectedName}으로 설정되었습니다.`, 'success');
+                    // ⭐️ 이름 변경 시 해당 사용자의 데이터로 새로 고침 (KPI만)
+                    await fetchSalesData(selectedName, false);
+                } else {
+                    localStorage.removeItem(REPORTER_NAME_KEY);
+                    displayMessage(`⚠️ 보고자 이름을 선택해 주세요.`, 'error');
+                    resetAllInputs(); // 이름 선택 해제 시 초기화
+                }
+            });
+            
+            // 초기 동적 필드 렌더링 
+            renderRevenueFields(0);
+            renderContractFields(0);
+
+            // 초기 대시보드 UI 업데이트 (데이터 로드 전까지는 0)
+            updateDashboardUI();
+        });
+
+        // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
+        // loadActivities: true일 때만 activities 배열을 덮어씁니다.
+        async function fetchSalesData(reporterName, loadActivities = false) {
+            displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
+
+            if (!SHEETS_READ_URL || SHEETS_READ_URL.includes("YOUR_WEB_APP_URL_HERE")) {
+                displayMessage('❌ Sheets URL이 설정되지 않았습니다. (스크립트 상단 확인)', 'error');
+                return false;
+            }
+
+            try {
+                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
+                    method: 'GET',
+                    mode: 'cors' // ⚠️ Apps Script에서 CORS를 허용해야 합니다.
+                });
+                
+                // HTTP 오류 응답 처리
+                if (!response.ok) {
+                     const errorBody = await response.text();
+                     console.error("Sheets API HTTP Error:", response.status, errorBody);
+                     throw new Error(`HTTP 오류: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.status === 'success' && data.message) {
+                    const fetchedData = data.message;
+
+                    // 1. KPI 업데이트 (항상)
+                    const monthly = fetchedData.monthlyKPI || {};
+                    dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
+                    dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
+                    dashboardData.chartData.activityCounts = monthly.activityCounts || {};
+                    
+                    // 2. 활동 목록 업데이트 (요청 시에만)
+                    if (loadActivities) {
+                        dashboardData.activities = fetchedData.activities || [];
+                        dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
+                    }
+
+                    // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
+                    // Sheets에서 계산된 오늘 KPI 값만 업데이트
+                    dashboardData.performance.totalRevenue = (fetchedData.todaySummaries || [])
+                        .filter(s => s.type === 'revenue')
+                        .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+                        
+                    dashboardData.performance.totalContracts = (fetchedData.todaySummaries || [])
+                           .filter(s => s.type === 'contract')
+                           .length;
+                    
+                    // ⭐️ 수정: 실적 저장 시에는 오늘 실적 목록(todaySummaries)을 덮어쓰지 않습니다.
+                    if (loadActivities) {
+                         dashboardData.todaySummaries = fetchedData.todaySummaries || [];
+                    }
+
+                    // 4. UI 갱신
+                    renderActivityAndPlanLists(); 
+                    updateDashboardUI();
+                    displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
+                    return true;
+                } else {
+                     console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
+                     displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
+                     return false;
+                }
+            
+            } catch (error) {
+                console.error("Sheets Read Error:", error);
+                // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
+                displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
+                updateDashboardUI(); 
+                return false;
+            }
+        }
+        window.fetchSalesData = fetchSalesData;
+
+
+        // --- Google Sheets로 데이터 전송 핵심 함수 ---
+        async function sendDataToSheets(action, dataPayload) {
+            const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
+            
+            if (!SHEETS_URL || SHEETS_URL.includes("YOUR_WEB_APP_URL_HERE")) {
+                console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
+                displayMessage('⚠️ Sheets URL이 설정되지 않았습니다. (전송 Mock 처리)', 'error');
+                return false; // ⚠️ URL이 없으면 실패 처리
+            }
+
+            try {
+                // ⚠️ 'no-cors' 모드는 응답을 읽을 수 없게 만듭니다.
+                // Apps Script가 JSONP나 적절한 CORS 헤더를 반환하도록 수정하는 것이 가장 좋습니다.
+                // 일단 'no-cors'로 전송 시도 (응답 확인 불가)
+                const response = await fetch(SHEETS_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, data: dataPayload })
+                });
+
+                // 'no-cors' 모드에서는 response.ok, response.status 등을 확인할 수 없습니다.
+                // 일단 요청이 성공적으로 전송되었다고 가정합니다.
+                console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
+                return true;
+
+            } catch (error) {
+                console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
+                displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
+                return false;
+            }
+        }
+        window.sendDataToSheets = sendDataToSheets;
+
+    </script>
+</body>
+</html>
