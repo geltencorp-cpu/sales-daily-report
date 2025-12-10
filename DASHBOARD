@@ -1,0 +1,457 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+  Cell, LabelList
+} from 'recharts';
+import { 
+  LayoutDashboard, RefreshCw, Phone, Mail, Award, DollarSign, 
+  Briefcase, AlertCircle, User, Settings, Info, FileText, Link as LinkIcon, Database, CheckCircle2, Crown, Layers
+} from 'lucide-react';
+
+// --- 유틸리티: CSV 파싱 ---
+const parseCSV = (str) => {
+  const arr = [];
+  let quote = false;
+  let col = 0, row = 0;
+  arr[row] = arr[row] || [];
+  arr[row][col] = arr[row][col] || '';
+
+  for (let c = 0; c < str.length; c++) {
+    let cc = str[c], nc = str[c+1];
+    if (cc === '"' && quote && nc === '"') { arr[row][col] += cc; ++c; continue; }
+    if (cc === '"') { quote = !quote; continue; }
+    if (cc === ',' && !quote) { ++col; arr[row][col] = ''; continue; }
+    if (cc === '\r' && nc === '\n' && !quote) { ++row; col = 0; ++c; arr[row] = []; continue; }
+    if (cc === '\n' && !quote) { ++row; col = 0; arr[row] = []; continue; }
+    if (cc === '\r' && !quote) { ++row; col = 0; arr[row] = []; continue; }
+    arr[row][col] += cc;
+  }
+  return arr;
+};
+
+// --- 유틸리티: URL에서 GID 추출 ---
+const extractGid = (input) => {
+  if (!input) return '';
+  if (/^\d+$/.test(input)) return input;
+  try {
+    const url = new URL(input);
+    const gid = url.searchParams.get('gid');
+    if (gid) return gid;
+  } catch (e) {}
+  const match = input.match(/gid=(\d+)/);
+  if (match && match[1]) return match[1];
+  const hashMatch = input.match(/#gid=(\d+)/);
+  if (hashMatch && hashMatch[1]) return hashMatch[1];
+  return input;
+};
+
+// --- 유틸리티: 숫자 파싱 ---
+const parseCurrency = (str) => {
+  if (!str) return 0;
+  const cleanStr = str.toString().replace(/[^0-9.-]/g, '');
+  const num = parseFloat(cleanStr);
+  return isNaN(num) ? 0 : Math.floor(num);
+};
+
+// --- 유틸리티: 금액 포맷팅 ---
+const formatKoreanCurrency = (val) => {
+  if (!val || val === 0) return '0';
+  if (val >= 100000000) return `${(val / 100000000).toFixed(1)}억`;
+  if (val >= 10000) return `${(val / 10000).toFixed(0)}만`;
+  return val.toLocaleString();
+};
+
+// --- 색상 팔레트 (동적 할당용) ---
+const CHART_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#6366f1', '#14b8a6', '#f43f5e'];
+
+// --- MOCK DATA ---
+const MOCK_SALES = [
+  [null, '2025-01', '김철수', 'A고객사', '1', null, null, '₩50,000,000'],
+  [null, '2025-02', '이영희', 'B고객사', '2', null, null, '₩85,000,000'],
+];
+
+export default function SalesDashboard() {
+  const [activityData, setActivityData] = useState([]);
+  const [salesData, setSalesData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [salesPreviewRow, setSalesPreviewRow] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // --- 설정 상태 ---
+  const SHEET_ID = '1W0OXOMzCvq6KlBwWpnnXQTgcOaC1gK4zftTEq5qmfns';
+  const [activityGid, setActivityGid] = useState('0'); 
+  const [salesGid, setSalesGid] = useState('1883872851');
+  const [tempSalesInput, setTempSalesInput] = useState('');
+
+  // --- 컬럼 매핑 설정 ---
+  const [colMap, setColMap] = useState({
+    manager: 2,   
+    client: 3,    
+    count: 4,     
+    revenue: 7    
+  });
+
+  const fetchData = async () => {
+    setLoading(true);
+    const getCsvUrl = (id, gid) => `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+    
+    // 1. 영업 활동
+    try {
+      const actRes = await fetch(getCsvUrl(SHEET_ID, activityGid));
+      if (actRes.ok) {
+        const actText = await actRes.text();
+        const actParsed = parseCSV(actText);
+        const newActivityData = actParsed.slice(1).map(row => ({
+          person: row[2], 
+          type: row[3]    
+        })).filter(item => item.person && item.type);
+        setActivityData(newActivityData);
+      }
+    } catch (err) { console.warn(err); }
+
+    // 2. 매출/계약
+    try {
+      const salesRes = await fetch(getCsvUrl(SHEET_ID, salesGid));
+      if (salesRes.ok) {
+        const salesText = await salesRes.text();
+        const salesParsed = parseCSV(salesText);
+        setSalesData(salesParsed.slice(1)); 
+        if (salesParsed.length > 1) {
+          setSalesPreviewRow(salesParsed[1]); 
+        }
+      }
+    } catch (err) { 
+      console.warn(err); 
+      setSalesData(MOCK_SALES);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, []); 
+
+  const handleApplySettings = () => {
+    if (tempSalesInput) setSalesGid(extractGid(tempSalesInput));
+    setTimeout(() => {
+      fetchData();
+      setShowSettings(false);
+    }, 100);
+  };
+
+  // --- 데이터 가공: 영업 활동 (동적 그룹화) ---
+  const processedActivityGroups = useMemo(() => {
+    const groups = {}; 
+
+    activityData.forEach(item => {
+      const person = item.person;
+      const type = item.type ? item.type.trim() : '기타';
+      
+      if (!person) return;
+
+      if (!groups[type]) {
+        groups[type] = {};
+      }
+      groups[type][person] = (groups[type][person] || 0) + 1;
+    });
+
+    return Object.keys(groups).map(type => {
+      const data = Object.entries(groups[type])
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+      
+      const totalCount = data.reduce((acc, curr) => acc + curr.count, 0);
+      
+      return { type, data, totalCount };
+    }).sort((a, b) => b.totalCount - a.totalCount);
+  }, [activityData]);
+
+  // --- 데이터 가공: 매출/계약 ---
+  const processedSales = useMemo(() => {
+    const aggregated = {};
+    salesData.forEach(row => {
+      const manager = row[colMap.manager];
+      const clientName = row[colMap.client]; 
+      const countStr = row[colMap.count];    
+      const revenueStr = row[colMap.revenue]; 
+
+      if (!manager) return;
+      if (!aggregated[manager]) {
+        aggregated[manager] = { 담당자: manager, 매출액: 0, 계약건수: 0, 계약처목록: [] };
+      }
+
+      let count = 0;
+      if (countStr && !isNaN(parseInt(countStr))) {
+        count = parseInt(countStr);
+      }
+      if (count > 0) {
+        aggregated[manager].계약건수 += count;
+        if (clientName) aggregated[manager].계약처목록.push(clientName);
+      }
+
+      if (revenueStr) {
+        aggregated[manager].매출액 += parseCurrency(revenueStr);
+      }
+    });
+
+    return Object.values(aggregated).map(item => ({
+      ...item,
+      대표계약처: item.계약처목록[0] || '-'
+    }));
+  }, [salesData, colMap]);
+
+  const chartData = useMemo(() => 
+    processedSales.filter(d => d.매출액 > 0 || d.계약건수 > 0)
+                  .sort((a, b) => b.매출액 - a.매출액),
+  [processedSales]);
+
+  const topSales = useMemo(() => 
+    [...processedSales].filter(d => d.매출액 > 0).sort((a, b) => b.매출액 - a.매출액).slice(0, 3), 
+  [processedSales]);
+
+  const topContracts = useMemo(() => 
+    [...processedSales].filter(d => d.계약건수 > 0).sort((a, b) => b.계약건수 - a.계약건수).slice(0, 3), 
+  [processedSales]);
+
+  const COLORS = { outbound: '#3b82f6', email: '#8b5cf6', contract: '#f59e0b', revenue: '#10b981' };
+
+  const CustomBarLabel = (props) => {
+    const { x, y, width, value, type } = props;
+    if (!value || value === 0) return null;
+    let displayValue = value;
+    if (type === 'revenue') displayValue = formatKoreanCurrency(value);
+    return (
+      <text x={x + width / 2} y={y - 5} fill="#fff" textAnchor="middle" dy={-6} fontSize={11} fontWeight="bold">
+        {displayValue}
+      </text>
+    );
+  };
+
+  return (
+    <div className="h-screen bg-slate-900 text-slate-100 font-sans overflow-hidden flex flex-col">
+      
+      {/* Header */}
+      <nav className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex-none">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <LayoutDashboard size={18} className="text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight text-white">Sales Command Center</h1>
+              <p className="text-[10px] text-slate-400">실시간 통합 대시보드</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSettings(!showSettings)} className="text-slate-400 hover:text-white flex items-center gap-1 text-xs bg-slate-700 px-2 py-1 rounded">
+              <Settings size={14} /> 설정
+            </button>
+            <button onClick={fetchData} className={`text-slate-400 hover:text-white ${loading ? 'animate-spin' : ''}`}>
+              <RefreshCw size={18} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="absolute top-14 right-4 z-50 w-[500px] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl p-5 overflow-y-auto max-h-[80vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <Database size={16} className="text-blue-400"/> 데이터 매핑 설정
+              </h3>
+              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-white text-xs">닫기</button>
+            </div>
+            {/* 시트 주소 */}
+            <div className="mb-4">
+              <label className="block text-[10px] text-slate-400 mb-1">매출 기록 시트 (URL)</label>
+              <input type="text" value={tempSalesInput || salesGid} onChange={(e) => setTempSalesInput(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white" placeholder="https://..." />
+            </div>
+            {/* 데이터 미리보기 */}
+            <div className="overflow-x-auto pb-2 mb-4">
+              <div className="flex gap-2 min-w-max">
+                {salesPreviewRow.map((cell, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                     <div className={`w-20 h-6 flex items-center justify-center text-[10px] rounded border ${Object.values(colMap).includes(idx) ? 'border-blue-500 bg-blue-900/30 text-blue-200' : 'border-slate-700 text-slate-500'}`}>{cell || '-'}</div>
+                     <span className="text-[9px] text-slate-500">Idx {idx}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* 매핑 입력 */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div><label className="block text-slate-400 mb-1">담당자 (C열=2)</label><input type="number" value={colMap.manager} onChange={(e) => setColMap({...colMap, manager: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1"/></div>
+              <div><label className="block text-slate-400 mb-1">계약처 (D열=3)</label><input type="number" value={colMap.client} onChange={(e) => setColMap({...colMap, client: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1"/></div>
+              <div><label className="block text-slate-400 mb-1">건수 (E열=4)</label><input type="number" value={colMap.count} onChange={(e) => setColMap({...colMap, count: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1"/></div>
+              <div><label className="block text-slate-400 mb-1">매출액 (H열=7)</label><input type="number" value={colMap.revenue} onChange={(e) => setColMap({...colMap, revenue: parseInt(e.target.value)})} className="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1"/></div>
+            </div>
+            <div className="mt-4 text-right"><button onClick={handleApplySettings} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded">저장</button></div>
+          </div>
+        )}
+      </nav>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 overflow-hidden">
+        {/* grid-rows-[3fr_1fr]:
+          상단 차트 영역을 3 비율 (약 75%), 하단 리스트 영역을 1 비율 (약 25%)로 설정하여
+          차트를 크게 하고 하단 리스트는 3위까지만 딱 맞게 보이도록 조정
+        */}
+        <div className="grid grid-cols-12 grid-rows-[3fr_1fr] gap-4 h-full">
+          
+          {/* --- Top Row: Charts (Expanded) --- */}
+          
+          {/* 1. 영업 활동 (동적 생성 차트) */}
+          <div className="col-span-4 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2 flex-none px-1">
+              <Briefcase size={16} className="text-blue-400" />
+              <h2 className="font-bold text-sm text-white">Daily Activities [일일 영업 활동]</h2>
+            </div>
+            
+            {/* 동적 차트 영역 (스크롤 가능) */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-0">
+              {processedActivityGroups.length > 0 ? (
+                processedActivityGroups.map((group, idx) => (
+                  <div key={group.type} className="h-32 flex flex-col bg-slate-900/30 rounded-lg p-2 flex-shrink-0">
+                    <span className="text-[10px] text-slate-300 font-bold mb-1 flex items-center gap-1 truncate">
+                      <Layers size={10} style={{ color: CHART_COLORS[idx % CHART_COLORS.length] }} /> 
+                      {group.type} ({group.totalCount}건)
+                    </span>
+                    <div className="flex-1 min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={group.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                          <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 10}} interval={0} />
+                          <YAxis stroke="#94a3b8" tick={{fontSize: 10}} width={20} />
+                          <Tooltip cursor={{fill: '#334155', opacity: 0.2}} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: '11px' }} />
+                          <Bar 
+                            dataKey="count" 
+                            fill={CHART_COLORS[idx % CHART_COLORS.length]} 
+                            radius={[3, 3, 0, 0]} 
+                            maxBarSize={30}
+                          >
+                            <LabelList dataKey="count" content={<CustomBarLabel />} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 text-xs">
+                  활동 데이터 없음
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. 계약 건수 (0 제외) */}
+          <div className="col-span-4 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 flex flex-col">
+            <div className="flex items-center gap-2 mb-2 flex-none">
+              <FileText size={16} className="text-amber-400" />
+              <h2 className="font-bold text-sm text-white">Contract Count [계약 건수]</h2>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.filter(d => d.계약건수 > 0)} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                  <XAxis dataKey="담당자" stroke="#94a3b8" tick={{fontSize: 11}} interval={0} />
+                  <YAxis stroke="#94a3b8" tick={{fontSize: 10}} allowDecimals={false} />
+                  <Tooltip cursor={{fill: '#334155', opacity: 0.2}} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: '12px' }} />
+                  <Bar dataKey="계약건수" name="계약 수" fill={COLORS.contract} radius={[4, 4, 0, 0]} maxBarSize={50}>
+                    <LabelList dataKey="계약건수" content={<CustomBarLabel />} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* 3. 매출액 (0 제외) */}
+          <div className="col-span-4 bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 flex flex-col relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-2 opacity-5">
+                <DollarSign size={80} />
+              </div>
+            <div className="flex items-center gap-2 mb-2 flex-none">
+              <DollarSign size={16} className="text-emerald-400" />
+              <h2 className="font-bold text-sm text-white">Revenue Status [매출 현황]</h2>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.filter(d => d.매출액 > 0)} margin={{ top: 15, right: 10, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                  <XAxis dataKey="담당자" stroke="#94a3b8" tick={{fontSize: 11}} interval={0} />
+                  <YAxis stroke="#94a3b8" tick={{fontSize: 10}} tickFormatter={(val) => val >= 10000 ? `${val/10000}만` : val} />
+                  <Tooltip cursor={{fill: '#334155', opacity: 0.2}} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', fontSize: '12px' }} formatter={(val) => val.toLocaleString() + '원'}/>
+                  <Bar dataKey="매출액" name="매출" fill={COLORS.revenue} radius={[4, 4, 0, 0]} maxBarSize={50}>
+                    <LabelList dataKey="매출액" content={<CustomBarLabel type="revenue" />} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* --- Bottom Row: Top 3 Lists (Compact & Side by Side) --- */}
+          <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden h-full">
+            
+            {/* Sales Top 3 */}
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden flex flex-col">
+              <div className="px-4 py-2 bg-slate-700/30 border-b border-slate-700/50 flex items-center justify-between">
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <Crown size={14} className="text-yellow-400"/> Sales Top 3 [매출 상위 3인]
+                </h3>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <table className="w-full text-left text-sm text-slate-400">
+                  <thead className="bg-slate-700/50 text-slate-200 sticky top-0">
+                    <tr><th className="px-6 py-2 w-16 text-center">순위</th><th className="px-6 py-2">담당자</th><th className="px-6 py-2 text-right">매출액</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {topSales.length > 0 ? topSales.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-700/30">
+                        <td className="px-6 py-2 text-center text-yellow-400 font-bold">{idx + 1}</td>
+                        <td className="px-6 py-2 text-white">{row.담당자}</td>
+                        <td className="px-6 py-2 text-right font-mono text-emerald-400 font-bold">{formatKoreanCurrency(row.매출액)}</td>
+                      </tr>
+                    )) : <tr><td colSpan="3" className="px-6 py-4 text-center text-slate-500">데이터 없음</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Contract Top 3 */}
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden flex flex-col">
+              <div className="px-4 py-2 bg-slate-700/30 border-b border-slate-700/50 flex items-center justify-between">
+                <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                  <Award size={14} className="text-blue-400"/> Contract Details Top 3 [계약 상세 상위 3인]
+                </h3>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <table className="w-full text-left text-sm text-slate-400">
+                  <thead className="bg-slate-700/50 text-slate-200 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-2 w-16 text-center">순위</th>
+                      <th className="px-6 py-2">담당자</th>
+                      <th className="px-6 py-2 text-right">건수</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {topContracts.length > 0 ? topContracts.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-700/30">
+                        <td className="px-6 py-2 text-center text-blue-400 font-bold">{idx + 1}</td>
+                        <td className="px-6 py-2 text-white">{row.담당자}</td>
+                        <td className="px-6 py-2 text-right font-mono text-white">{row.계약건수}</td>
+                      </tr>
+                    )) : <tr><td colSpan="3" className="px-6 py-4 text-center text-slate-500">데이터 없음</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
