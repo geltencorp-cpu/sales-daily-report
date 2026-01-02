@@ -23,7 +23,7 @@
             background-color: #f4f7f9;
         }
         .container-main {
-            max-width: 1024px;
+            max-width: 1280px; /* 테이블이 넓어질 수 있어 폭을 조금 넓힘 */
         }
         .card {
             background-color: white;
@@ -98,6 +98,64 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* --- [수정] 엑셀 스타일 테이블 CSS 개선 --- */
+        table {
+            table-layout: fixed; /* 레이아웃 고정으로 칸 깨짐 방지 */
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .input-cell {
+            padding: 0;
+            border: 1px solid #e5e7eb;
+            background-color: #fff;
+            vertical-align: top;
+        }
+        .input-cell input, .input-cell textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 2.5rem; /* 최소 높이 확보 */
+            border: 2px solid transparent; /* 평소에는 투명 테두리 */
+            border-radius: 0;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            transition: all 0.1s;
+        }
+        .input-cell input:focus, .input-cell textarea:focus {
+            background-color: #f8fafc;
+            border-color: #3b82f6; /* 포커스 시 파란 테두리 */
+            z-index: 10;
+            position: relative;
+        }
+        .input-cell:hover {
+            background-color: #f9fafb;
+        }
+        /* 첫번째 칸(영업대상) 강조 */
+        .first-col input {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+        
+        /* 섹션 스타일 */
+        .activity-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            background-color: #fff;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        .activity-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8">
@@ -120,11 +178,11 @@
             <!-- Column 1 & 2: Activity, Plans, & Analysis (lg:col-span-2) -->
             <div class="lg:col-span-2 space-y-6">
 
-                <!-- 1. 일일 활동 기록 -->
+                <!-- 1. 일일 활동 기록 (엑셀 그리드 형태) -->
                 <section class="card p-6">
                     <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center">
                         <i data-lucide="file-pen" class="w-5 h-5 mr-2 text-blue-500"></i>
-                        ✍️ 일일 활동 기록 및 상세 내용 추가
+                        ✍️ 일일 활동 기록 (엑셀 붙여넣기 가능)
                     </h2>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -139,9 +197,9 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">영업 활동 유형 선택:</label>
-                            <select id="activityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border">
-                                <option value="">--- 활동 유형을 선택하세요 ---</option>
+                            <label class="block text-sm font-medium text-gray-700">영업 활동 유형 추가:</label>
+                            <select id="activityType" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-blue-600 font-semibold bg-blue-50 hover:bg-blue-100 transition">
+                                <option value="">+ 활동 유형을 선택하여 추가하세요</option>
                                 <option value="공문영업">공문영업</option>
                                 <option value="인바운드 영업">인바운드 영업</option>
                                 <option value="아웃바운드 영업">아웃바운드 영업</option>
@@ -153,24 +211,31 @@
                         </div>
                     </div>
                     
-                    <!-- 동적으로 생성될 입력 필드 영역 -->
-                    <div id="dynamicActivityFields" class="mt-4 border-l-4 border-blue-200 pl-4 py-2">
-                        <p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>
+                    <!-- 엑셀 형태 입력 섹션들이 여기에 추가됨 -->
+                    <div id="activitySectionsContainer" class="mt-4 space-y-6">
+                        <!-- 동적으로 섹션이 추가됩니다 -->
+                        <div id="emptyStateMessage" class="border-l-4 border-blue-200 pl-4 py-8 text-center bg-gray-50 rounded-r-lg">
+                            <p class="text-sm text-gray-500">위의 <strong>'영업 활동 유형 추가'</strong> 메뉴에서 유형을 선택하면<br>입력 테이블이 여기에 생성됩니다.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 일괄 저장 버튼 (섹션이 하나라도 있을 때만 유효하지만 항상 보여줌) -->
+                    <div id="saveAllButtonArea" class="mt-6 pt-4 border-t border-gray-100 text-center hidden">
+                        <button onclick="handleSaveAllActivities()" class="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center shadow-lg transform hover:-translate-y-0.5">
+                            <i data-lucide="save" class="w-5 h-5 mr-2"></i> 모든 활동 내역 일괄 저장
+                        </button>
+                        <p class="text-xs text-gray-400 mt-2">* 화면에 입력된 모든 활동 내역이 순차적으로 저장됩니다.</p>
                     </div>
 
-                    <button id="addActivityButton" class="w-full mt-6 bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition">
-                        + 활동 내역 추가
-                    </button>
-                    
-                    <div class="mt-6">
-                        <h3 class="font-semibold text-gray-700 mb-2">작성된 활동 목록 (아래로 누적) - 카드를 끌어 '내일 계획'에 연결하세요</h3>
+                    <div class="mt-8 pt-6 border-t border-gray-100">
+                        <h3 class="font-semibold text-gray-700 mb-2">저장된 활동 목록 (누적) - 카드를 끌어 '내일 계획'에 연결하세요</h3>
                         <button id="loadPastDataBtn" class="w-full bg-gray-100 text-gray-700 p-2 mb-2 rounded-lg text-sm hover:bg-gray-200 transition flex items-center justify-center">
                             <i data-lucide="history" class="w-4 h-4 mr-2"></i>
                             📅 과거 내역 불러오기 (최근 1개월)
                         </button>
                         <div id="activityList" class="drag-source bg-gray-50 p-3 min-h-[5rem]"
                             ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-                            <p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>
+                            <p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다.</p>
                         </div>
                     </div>
                 </section>
@@ -378,21 +443,16 @@
     <script type="module">
         
         // --- Gemini API 설정 ---
-        // ⚠️ placeholder API key: 이 키는 실제로는 작동하지 않습니다.
-        // 실제 Google AI Studio에서 발급받은 본인의 API 키로 교체해야 합니다.
-        const GEMINI_API_KEY = "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4"; // ⬅️ 여기에 실제 API 키를 입력하세요.
+        const GEMINI_API_KEY = ""; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
         // [필수] Google Sheets Web App URL
-        // ⚠️ placeholder Sheets URL: 이 URL은 실제로는 작동하지 않습니다.
-        // Google Apps Script를 배포하여 생성된 본인의 Web App URL로 교체해야 합니다.
-        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec"; // ⬅️ 여기에 실제 Apps Script URL을 입력하세요.
+        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec";
         const SHEETS_API_URL = SHEETS_URL;
         const SHEETS_READ_URL = SHEETS_URL;
 
         const REPORTER_NAME_KEY = 'salesReporterName'; 
 
-        // 사용자 ID는 로컬에서 생성 및 유지 (인증 없이 사용)
         let currentUserId = localStorage.getItem('localUserId') || crypto.randomUUID();
         localStorage.setItem('localUserId', currentUserId);
         
@@ -401,11 +461,10 @@
         let activityCounter = 1; 
         let planCounter = 1; 
         
-        // --- 임시 데이터 초기값 (Sheets 로드 후 업데이트됨) ---
         let dashboardData = {
             activities: [],
             plans: [],
-            todaySummaries: [], // 실적 요약 목록
+            todaySummaries: [],
             performance: {
                 totalRevenue: 0, 
                 totalContracts: 0, 
@@ -418,12 +477,113 @@
             }
         };
 
-        // --- 재시도 로직을 위한 유틸리티 함수 ---
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // ====================================================================
-        // 1. 함수 정의 (모든 함수를 DOMContentLoaded 이전에 정의)
-        // ====================================================================
+        // --- 커스텀 메시지 표시 함수 ---
+        function displayMessage(message, type) {
+            const statusElement = document.getElementById('saveStatus');
+            statusElement.textContent = message;
+            statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
+        
+            if (type !== 'info') {
+                setTimeout(() => {
+                    statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
+                    statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
+                }, 8000);
+            }
+        }
+        window.displayMessage = displayMessage;
+
+        // --- Google Sheets로 데이터 전송 핵심 함수 ---
+        async function sendDataToSheets(action, dataPayload) {
+            const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
+            
+            if (!SHEETS_URL) {
+                console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
+                return false;
+            }
+
+            try {
+                const response = await fetch(SHEETS_API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, data: dataPayload })
+                });
+
+                console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
+                return true;
+
+            } catch (error) {
+                console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
+                displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
+                return false;
+            }
+        }
+        window.sendDataToSheets = sendDataToSheets;
+
+        // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
+        async function fetchSalesData(reporterName, loadActivities = false) {
+            displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
+
+            try {
+                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (!response.ok) {
+                     const errorBody = await response.text();
+                     console.error("Sheets API HTTP Error:", response.status, errorBody);
+                     throw new Error(`HTTP 오류: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.status === 'success' && data.message) {
+                    const fetchedData = data.message;
+
+                    const monthly = fetchedData.monthlyKPI || {};
+                    dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
+                    dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
+                    dashboardData.chartData.activityCounts = monthly.activityCounts || {};
+                    
+                    if (loadActivities) {
+                        dashboardData.activities = fetchedData.activities || [];
+                        dashboardData.plans = fetchedData.plans || []; 
+                    }
+
+                    dashboardData.performance.totalRevenue = (fetchedData.todaySummaries || [])
+                        .filter(s => s.type === 'revenue')
+                        .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+                        
+                    dashboardData.performance.totalContracts = (fetchedData.todaySummaries || [])
+                         .filter(s => s.type === 'contract')
+                         .length;
+                    
+                    if (loadActivities) {
+                         dashboardData.todaySummaries = fetchedData.todaySummaries || [];
+                    }
+
+                    renderActivityAndPlanLists(); 
+                    updateDashboardUI();
+                    displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
+                    return true;
+                } else {
+                     console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
+                     displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
+                     return false;
+                }
+            
+            } catch (error) {
+                console.error("Sheets Read Error:", error);
+                displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
+                updateDashboardUI(); 
+                return false;
+            }
+        }
+        window.fetchSalesData = fetchSalesData;
+
         
         // --- UI 업데이트 함수 (KPI 업데이트 및 차트 재렌더링) ---
         function updateDashboardUI() {
@@ -435,7 +595,9 @@
 
             document.getElementById('displayTotalRevenue').textContent = krwFormatter.format(dashboardData.performance.totalRevenue);
             document.getElementById('displayTotalContracts').textContent = `${dashboardData.performance.totalContracts.toLocaleString()}건`;
+            
             document.getElementById('displayRevenueGoalAttainment').textContent = `${dashboardData.performance.revenueGoalAttainment.toFixed(1)}%`; 
+
             document.getElementById('displayMonthlyCumulativeSales').textContent = krwFormatter.format(dashboardData.performance.monthlyCumulativeSales);
             document.getElementById('displayMyMonthlySales').textContent = krwFormatter.format(dashboardData.performance.myMonthlySales);
             
@@ -508,16 +670,16 @@
                             'rgba(16, 185, 129, 0.7)', 
                             'rgba(245, 158, 11, 0.7)',  
                             'rgba(99, 102, 241, 0.7)',  
-                            'rgba(239, 68, 68, 0.7)',    
-                            'rgba(6, 182, 212, 0.7)',    
+                            'rgba(239, 68, 68, 0.7)',   
+                            'rgba(6, 182, 212, 0.7)',   
                             'rgba(236, 72, 153, 0.7)',  
                         ],
                         borderColor: [
                             'rgb(16, 185, 129)', 
                             'rgb(245, 158, 11)',  
                             'rgb(99, 102, 241)', 
-                            'rgb(239, 68, 68)',    
-                            'rgb(6, 182, 212)',    
+                            'rgb(239, 68, 68)',   
+                            'rgb(6, 182, 212)',   
                             'rgb(236, 72, 153)',  
                         ],
                         borderWidth: 1
@@ -567,10 +729,12 @@
                         <span class="text-xs font-bold bg-blue-700 text-white px-2 py-0.5 rounded-full">${activity.type}</span>
                         <span class="text-xs text-blue-900 opacity-75 ml-2">${activity.time}</span>
                     </div>
+                    <!-- 삭제 버튼 추가 -->
                     <button onclick="deleteActivity('${activity.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="활동 삭제">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
+                <!-- 요약된 내용 표시 -->
                 <p class="mt-1 text-sm font-semibold">${detailsText}</p>
                 <p class="text-xs text-blue-900 opacity-75 mt-0.5">보고자: ${activity.reporter}</p>
             `;
@@ -603,6 +767,7 @@
                         <span class="text-sm font-bold bg-indigo-700 text-white px-3 py-1 rounded-full">${plan.type} (예정)</span>
                         <span class="text-xs text-indigo-900 font-medium ml-3">담당: ${plan.contact}</span>
                     </div>
+                    <!-- 삭제 버튼 추가 -->
                     <button onclick="deletePlan('${plan.id}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-white transition" title="계획 삭제">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
@@ -615,7 +780,6 @@
             lucide.createIcons();
         }
         
-        // --- 실적 요약 카드 렌더링 함수 ---
         function renderSummaryCard(summary) {
             const list = document.getElementById('performanceSummaryList');
             const placeholder = list.querySelector('p.text-gray-400');
@@ -646,19 +810,16 @@
         }
 
 
-        // --- 목록 초기화 및 데이터 기반 렌더링 ---
         function renderActivityAndPlanLists() {
             const activityList = document.getElementById('activityList');
             const planList = document.getElementById('planList');
             const performanceSummaryList = document.getElementById('performanceSummaryList');
 
             activityList.innerHTML = '';
-            // ⭐️ 수정: 계획 목록은 비우지 않습니다. (수동으로 추가/삭제/로드만 됨)
-            performanceSummaryList.innerHTML = ''; // 실적 요약 목록은 항상 비웁니다.
+            performanceSummaryList.innerHTML = ''; 
 
-            // 플레이스홀더 설정
             if (dashboardData.activities.length === 0) {
-                activityList.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요.</p>';
+                activityList.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다.</p>';
             }
             if (dashboardData.plans.length === 0) {
                 planList.innerHTML = '<p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>';
@@ -667,7 +828,6 @@
                  performanceSummaryList.innerHTML = '<p class="text-gray-400 text-sm">오늘 저장된 실적 내역이 없습니다. 실적을 상세히 기록해 주세요。</p>';
             }
 
-            // 데이터 렌더링
             dashboardData.activities.forEach(renderActivityCard);
             dashboardData.plans.forEach(renderPlanCard); 
             dashboardData.todaySummaries.forEach(renderSummaryCard); 
@@ -675,7 +835,6 @@
             lucide.createIcons();
         }
 
-        // --- 활동 내역 삭제 함수 ---
         function deleteActivity(activityId) {
             dashboardData.activities = dashboardData.activities.filter(a => a.id !== activityId);
             
@@ -687,13 +846,12 @@
             
             const list = document.getElementById('activityList');
             if (dashboardData.activities.length === 0) {
-                list.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다. 위의 양식으로 활동 내역을 추가해 보세요。</p>';
+                list.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다.</p>';
             }
             lucide.createIcons();
         }
         window.deleteActivity = deleteActivity;
 
-        // --- 내일 계획 삭제 함수 ---
         function deletePlan(planId) {
             dashboardData.plans = dashboardData.plans.filter(p => p.id !== planId);
             
@@ -712,7 +870,6 @@
         window.deletePlan = deletePlan;
 
 
-        // --- 동적 입력 필드 렌더링 (활동/계획) ---
         function renderPlanDynamicFields() {
             const container = document.getElementById('dynamicPlanFields');
             const selectedType = document.getElementById('planActivityType').value;
@@ -722,7 +879,6 @@
                 container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
                 return;
             }
-
             const fieldsHtml = `
                 <div class="space-y-3">
                     <div>
@@ -745,7 +901,6 @@
         window.renderPlanDynamicFields = renderPlanDynamicFields;
 
         
-        // --- 내일 계획 추가 핸들러 ---
         async function handleAddPlan() {
             const reporterNameSelect = document.getElementById('reporterName');
             const reporterName = reporterNameSelect.value.trim(); 
@@ -810,142 +965,280 @@
         window.handleAddPlan = handleAddPlan;
 
 
-        // --- 동적 입력 필드 렌더링 (일일 활동 유형 선택 시 호출) ---
-        function renderDynamicFields() {
-            const container = document.getElementById('dynamicActivityFields');
-            const selectedType = document.getElementById('activityType').value;
-
-            if (selectedType === "" || selectedType === "--- 활동 유형을 선택하세요 ---") {
-                container.innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
-                return;
-            }
+        // --- [신규] 멀티 섹션 관리 함수 ---
+        
+        function appendActivitySection(activityType) {
+            const container = document.getElementById('activitySectionsContainer');
+            const emptyMessage = document.getElementById('emptyStateMessage');
+            const saveAllButtonArea = document.getElementById('saveAllButtonArea');
             
-            container.innerHTML = `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">영업 대상</label>
-                        <input type="text" id="inputTarget" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: A사 신규 프로젝트, 기존 B고객 유지">
+            if (!container) return;
+            
+            // 빈 상태 메시지 숨김
+            if (emptyMessage) emptyMessage.classList.add('hidden');
+            // 일괄 저장 버튼 보임
+            if (saveAllButtonArea) saveAllButtonArea.classList.remove('hidden');
+
+            const sectionId = `section-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const tableBodyId = `tbody-${sectionId}`;
+            
+            const sectionHtml = `
+                <div id="${sectionId}" class="activity-section" data-activity-type="${activityType}">
+                    <div class="activity-section-header">
+                        <div class="flex items-center">
+                            <span class="text-lg font-bold text-gray-800 bg-blue-100 text-blue-800 px-3 py-1 rounded-md mr-2">${activityType}</span>
+                            <span class="text-xs text-gray-500">입력 테이블</span>
+                        </div>
+                        <button onclick="removeActivitySection('${sectionId}')" class="text-gray-400 hover:text-red-500 transition" title="이 유형 삭제">
+                            <i data-lucide="x-circle" class="w-5 h-5"></i>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">영업 목적</label>
-                        <input type="text" id="inputPurpose" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 신제품 X 판매, 계약 연장">
+                    
+                    <!-- 안내 메시지 -->
+                    <div class="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs text-blue-800 flex items-start">
+                        <i data-lucide="clipboard-paste" class="w-4 h-4 mr-2 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="font-bold">✨ 간편 붙여넣기:</p>
+                            <p>엑셀에서 <strong>[영업대상 | 영업목적 | 예상성과 | 상세내용]</strong> 4개 열을 복사하여 아래 표의 <strong>첫 번째 칸을 클릭하고 Ctrl+V</strong> 하세요.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">예상 성과</label>
-                        <input type="text" id="inputExpectedResult" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="ex: 500만원 계약 체결, 다음 미팅 확정">
+
+                    <div class="overflow-hidden border border-gray-300 rounded-lg shadow-sm">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-100 text-gray-700">
+                                <tr>
+                                    <th class="px-2 py-2 text-left text-xs font-bold w-[20%] border-r border-gray-300">영업 대상</th>
+                                    <th class="px-2 py-2 text-left text-xs font-bold w-[20%] border-r border-gray-300">영업 목적</th>
+                                    <th class="px-2 py-2 text-left text-xs font-bold w-[20%] border-r border-gray-300">예상 성과</th>
+                                    <th class="px-2 py-2 text-left text-xs font-bold w-[35%] border-r border-gray-300">상세 내용</th>
+                                    <th class="px-1 py-2 text-center text-xs font-bold w-[5%] bg-gray-50">삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody id="${tableBodyId}" class="bg-white divide-y divide-gray-200">
+                                <!-- Rows will be added here -->
+                            </tbody>
+                        </table>
                     </div>
-                    <hr class="border-t border-gray-200">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">실적 건수 (숫자만 입력)</label>
-                        <input type="number" id="inputPerformanceCount" min="1" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="1">
-                    </div>
-                    <div id="detailTextareas" class="space-y-3">
-                        <!-- 상세 내용 입력란이 여기에 동적으로 생성됩니다. -->
+                    
+                    <div class="mt-3 text-right">
+                        <button onclick="addActivityRowToSection('${tableBodyId}')" class="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-50 transition flex items-center inline-flex">
+                            <i data-lucide="plus" class="w-3 h-3 mr-1"></i> 행 추가
+                        </button>
                     </div>
                 </div>
             `;
             
-            renderDetailFields(1); // 기본 1개 생성
+            container.insertAdjacentHTML('beforeend', sectionHtml);
             
-            // ⭐️ 중요: inputPerformanceCount가 생성된 직후에 리스너를 연결합니다.
-            const performanceCountInput = document.getElementById('inputPerformanceCount');
-            if(performanceCountInput) {
-                performanceCountInput.addEventListener('input', (e) => {
-                    const count = parseInt(e.target.value, 10);
-                    if (!isNaN(count) && count >= 0) renderDetailFields(count);
-                });
+            // 초기 행 하나 추가
+            addActivityRowToSection(tableBodyId);
+            
+            // Paste 이벤트 리스너 등록
+            const tbody = document.getElementById(tableBodyId);
+            if (tbody) {
+                tbody.addEventListener('paste', handlePasteEvent);
             }
             
             lucide.createIcons();
+            displayMessage(`➕ '${activityType}' 입력란이 추가되었습니다.`, 'success');
         }
-        window.renderDynamicFields = renderDynamicFields;
+        window.appendActivitySection = appendActivitySection;
 
-
-        // --- 실적 건수에 따른 상세 내용 필드 렌더링 ---
-        function renderDetailFields(countString) {
-            const count = parseInt(countString, 10);
-            const container = document.getElementById('detailTextareas');
-            if (!container) return; // container가 아직 없으면 종료
+        function removeActivitySection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) section.remove();
             
-            container.innerHTML = '';
-
-            if (isNaN(count) || count <= 0) {
-                container.innerHTML = '<p class="text-sm text-red-500">실적 건수는 1 이상의 숫자로 입력해야 합니다.</p>';
-                return;
-            }
-
-            for (let i = 1; i <= count; i++) {
-                const detailHtml = `
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">상세 내용 ${i}</label>
-                        <textarea id="detail_${i}" rows="2" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-2 border" placeholder="${i}번째 활동의 구체적인 내용, 결과, 후속 조치를 기록하세요."></textarea>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', detailHtml);
+            const container = document.getElementById('activitySectionsContainer');
+            if (container && container.children.length <= 1) { // emptyStateMessage 포함
+                document.getElementById('emptyStateMessage').classList.remove('hidden');
+                document.getElementById('saveAllButtonArea').classList.add('hidden');
             }
         }
-        window.renderDetailFields = renderDetailFields;
+        window.removeActivitySection = removeActivitySection;
+
+        // --- [수정됨] 특정 섹션에 행 추가 함수 ---
+        function addActivityRowToSection(tableBodyId, target='', purpose='', result='', details='') {
+            const tableBody = document.getElementById(tableBodyId);
+            if (!tableBody) return;
+            
+            const rowId = `row-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+            
+            const rowHtml = `
+                <tr id="${rowId}">
+                    <td class="input-cell first-col">
+                        <input type="text" name="target" value="${target}" placeholder="대상">
+                    </td>
+                    <td class="input-cell">
+                        <input type="text" name="purpose" value="${purpose}" placeholder="목적">
+                    </td>
+                    <td class="input-cell">
+                        <input type="text" name="expectedResult" value="${result}" placeholder="성과">
+                    </td>
+                    <td class="input-cell">
+                        <textarea name="details" rows="1" placeholder="상세">${details}</textarea>
+                    </td>
+                    <td class="input-cell text-center align-middle">
+                        <button onclick="document.getElementById('${rowId}').remove()" class="text-red-400 hover:text-red-600 p-1">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            tableBody.insertAdjacentHTML('beforeend', rowHtml);
+            lucide.createIcons();
+        }
+        window.addActivityRowToSection = addActivityRowToSection;
+
+        // --- [신규] 공통 Paste 핸들러 ---
+        function handlePasteEvent(e) {
+            if (!['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+            e.preventDefault();
+            const clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+            
+            // 엑셀 데이터 전처리
+            const sanitizedData = clipboardData.replace(/"([^"]*)"/g, (match, p1) => {
+                return p1.replace(/[\r\n]+/g, ' '); 
+            });
+
+            const rows = sanitizedData.split(/\r\n|\n|\r/).filter(row => row.trim() !== '');
+            
+            let startRow = e.target.closest('tr');
+            const inputsInRow = Array.from(startRow.querySelectorAll('input, textarea'));
+            const startCellIndex = inputsInRow.indexOf(e.target);
+
+            if (startCellIndex === -1) return;
+
+            let currentRow = startRow;
+            const tableBody = e.currentTarget; // tbody
+            
+            rows.forEach((rowText) => {
+                const cells = rowText.split('\t');
+                
+                // 현재 행이 없으면 새로 추가
+                if (!currentRow) {
+                    // 현재 tbody ID를 찾아서 행 추가
+                    addActivityRowToSection(tableBody.id);
+                    currentRow = tableBody.lastElementChild;
+                }
+
+                const rowInputs = Array.from(currentRow.querySelectorAll('input, textarea'));
+                
+                cells.forEach((cellText, cIdx) => {
+                    const targetIndex = startCellIndex + cIdx;
+                    if (rowInputs[targetIndex]) {
+                        let finalValue = cellText.trim();
+                        if (finalValue.startsWith('"') && finalValue.endsWith('"')) {
+                            finalValue = finalValue.slice(1, -1);
+                        }
+                        rowInputs[targetIndex].value = finalValue;
+                    }
+                });
+
+                currentRow = currentRow.nextElementSibling;
+            });
+            
+            displayMessage(`✅ ${rows.length}개의 행을 붙여넣었습니다.`, 'success');
+        }
 
 
-        // --- 활동 내역 추가 핸들러 ---
-        async function handleAddActivity() {
+        // --- [수정됨] 멀티 섹션 일괄 저장 핸들러 ---
+        async function handleSaveAllActivities() {
             const reporterNameSelect = document.getElementById('reporterName'); 
             let reporterName = reporterNameSelect.value.trim(); 
-
-            const activityTypeSelect = document.getElementById('activityType');
-            const activityType = activityTypeSelect.value;
-            
-            const target = document.getElementById('inputTarget')?.value.trim();
-            const purpose = document.getElementById('inputPurpose')?.value.trim();
-            const expectedResult = document.getElementById('inputExpectedResult')?.value.trim();
-            const count = parseInt(document.getElementById('inputPerformanceCount')?.value, 10) || 0;
             
             if (!reporterName) {
-                displayMessage('⚠️ 보고자 이름을 먼저 선택하고 활동을 추가하세요.', 'error');
+                displayMessage('⚠️ 보고자 이름을 먼저 선택해 주세요.', 'error');
                 return;
             }
+
+            const sections = document.querySelectorAll('.activity-section');
+            if (sections.length === 0) {
+                displayMessage('⚠️ 저장할 활동 유형 섹션이 없습니다.', 'error');
+                return;
+            }
+
+            let activitiesToSave = [];
             
-            let collectedDetails = [];
-            for (let i = 1; i <= count; i++) {
-                const detailElement = document.getElementById(`detail_${i}`);
-                if (detailElement && detailElement.value.trim()) {
-                    collectedDetails.push(detailElement.value.trim());
-                }
-            }
+            // 모든 섹션 순회
+            sections.forEach(section => {
+                const activityType = section.dataset.activityType;
+                const rows = section.querySelectorAll('tbody tr');
+                
+                rows.forEach(row => {
+                    const target = row.querySelector('input[name="target"]').value.trim();
+                    const purpose = row.querySelector('input[name="purpose"]').value.trim();
+                    const expectedResult = row.querySelector('input[name="expectedResult"]').value.trim();
+                    const details = row.querySelector('textarea[name="details"]').value.trim();
+                    
+                    // 유효한 데이터만 수집 (대상 필수)
+                    if (target) {
+                        activitiesToSave.push({
+                            type: activityType,
+                            target,
+                            purpose,
+                            expectedResult,
+                            count: 1,
+                            details
+                        });
+                    }
+                });
+            });
 
-            if (activityType === "" || activityType === "--- 활동 유형을 선택하세요 ---" || !target || count <= 0 || collectedDetails.length === 0) {
-                displayMessage('⚠️ 활동 유형, 영업 대상, 실적 건수 및 상세 내용을 모두 입력해야 합니다.', 'error');
+            if (activitiesToSave.length === 0) {
+                displayMessage('⚠️ 입력된 데이터가 없습니다. 내용을 작성해 주세요.', 'error');
                 return;
             }
 
-            const summaryText = `대상: ${target} | 목적: ${purpose} | 건수: ${count}건. 상세: ${collectedDetails[0].substring(0, 20)}...`;
+            displayMessage(`⏳ 총 ${activitiesToSave.length}건의 활동을 순서대로 저장 중입니다...`, 'info');
 
+            // 순차적 전송
+            let successCount = 0;
             const now = new Date();
-            const newActivity = {
-                id: `activity-${activityCounter++}`,
-                reporter: reporterName,
-                date: now.toISOString().slice(0, 10),
-                time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-                type: activityType,
-                target: target,
-                purpose: purpose,
-                expectedResult: expectedResult,
-                count: count,
-                fullDetails: collectedDetails.join('; '), 
-                summaryText: summaryText
-            };
-
-            dashboardData.activities.push(newActivity); 
-            renderActivityCard(newActivity); 
             
-            activityTypeSelect.value = "";
-            document.getElementById('dynamicActivityFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
+            for (const item of activitiesToSave) {
+                const summaryText = `[${item.type}] 대상: ${item.target} | 목적: ${item.purpose} | 건수: 1건`;
+                
+                const newActivity = {
+                    id: `activity-${activityCounter++}`,
+                    reporter: reporterName,
+                    date: now.toISOString().slice(0, 10),
+                    time: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+                    type: item.type,
+                    target: item.target,
+                    purpose: item.purpose,
+                    expectedResult: item.expectedResult,
+                    count: item.count,
+                    fullDetails: item.details, 
+                    summaryText: summaryText
+                };
 
-            displayMessage('✔️ 새로운 활동 내역이 추가되었습니다.', 'success');
-            
-            await sendDataToSheets('add활동', newActivity);
+                // 로컬 데이터 추가 및 UI 카드 생성
+                dashboardData.activities.push(newActivity); 
+                renderActivityCard(newActivity); 
+
+                // Google Sheets 전송
+                const success = await sendDataToSheets('add활동', newActivity);
+                if (success) successCount++;
+                
+                await sleep(300); // 딜레이
+            }
+
+            if (successCount === activitiesToSave.length) {
+                displayMessage(`🎉 총 ${successCount}건의 활동이 성공적으로 저장되었습니다.`, 'success');
+                // 모든 섹션 초기화 (삭제)
+                document.getElementById('activitySectionsContainer').innerHTML = `
+                    <div id="emptyStateMessage" class="border-l-4 border-blue-200 pl-4 py-8 text-center bg-gray-50 rounded-r-lg">
+                        <p class="text-sm text-gray-500">위의 <strong>'영업 활동 유형 추가'</strong> 메뉴에서 유형을 선택하면<br>입력 테이블이 여기에 생성됩니다.</p>
+                    </div>
+                `;
+                document.getElementById('saveAllButtonArea').classList.add('hidden');
+            } else {
+                displayMessage(`⚠️ ${activitiesToSave.length}건 중 ${successCount}건만 저장되었습니다.`, 'error');
+            }
         }
-        window.handleAddActivity = handleAddActivity;
+        window.handleSaveAllActivities = handleSaveAllActivities;
 
         
         // --- 동적 실적 입력 필드 렌더링 ---
@@ -958,7 +1251,7 @@
                 container.insertAdjacentHTML('beforeend', `
                     <div class="space-y-1 p-2 border border-gray-200 rounded-lg">
                         <input type="text" id="revenueSource_${i}" class="block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-sm" placeholder="매출처">
-                        <input type="number" id="revenueAmount_${i}" class="block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-sm" placeholder="금액 (EX: 100000)">
+                        <input type="text" id="revenueAmount_${i}" class="block w-full rounded-lg border-gray-300 shadow-sm p-2 border text-sm" placeholder="금액 (EX: 100000)">
                     </div>
                 `);
             }
@@ -983,7 +1276,7 @@
         
         
         // --- 이벤트 핸들러: 실적 저장, 요약 표시, Sheets 전송 (비동기) ---
-        window.handleSavePerformance = async () => {
+        async function handleSavePerformance() {
             const reporterNameSelect = document.getElementById('reporterName');
             const reporterName = reporterNameSelect.value.trim(); 
             
@@ -1005,7 +1298,10 @@
             // 1-1. 매출 데이터 수집 및 전송 준비
             for (let i = 1; i <= revenueCount; i++) {
                 const source = document.getElementById(`revenueSource_${i}`)?.value.trim();
-                const amount = parseFloat(document.getElementById(`revenueAmount_${i}`)?.value) || 0;
+                // 콤마 제거 후 숫자 변환
+                let rawAmount = document.getElementById(`revenueAmount_${i}`)?.value || '0';
+                rawAmount = rawAmount.replace(/,/g, '');
+                const amount = parseFloat(rawAmount) || 0;
                 
                 if (source && amount > 0) {
                     localRevenueTotal += amount;
@@ -1050,9 +1346,22 @@
                 }
             }
             
-            if (sheetsPromises.length === 0) {
-                displayMessage('⚠️ 저장할 유효한 실적 데이터가 없습니다. 입력 필드를 확인하세요.', 'error');
-                return false;
+            // ⭐️ 수정: 건수가 0일 때도 "실적 없음"으로 저장
+            if (revenueCount === 0 && contractCount === 0) {
+                const summary = { id: `sum-${Date.now()}-none-0`, type: 'contract', time: time, reporter: reporterName, source: 'N/A', amount: 0, contractName: '실적 없음' };
+                allSummaries.push(summary);
+                
+                const payload = {
+                    date: now.toISOString().slice(0, 10),
+                    time: time,
+                    reporter: reporterName,
+                    revenueSource: '',
+                    revenue: 0,
+                    contractSource: 'N/A',
+                    contracts: 1, 
+                    contractName: '실적 없음',
+                };
+                sheetsPromises.push(sendDataToSheets('add실적', payload));
             }
 
             // 2. Sheets에 데이터 전송 (병렬 처리)
@@ -1068,7 +1377,6 @@
             // 3. 로컬 데이터 업데이트 (UI 즉시 반영)
             dashboardData.todaySummaries.push(...allSummaries);
             
-            // 여기서는 오늘 저장된 실적만 합산하여 로컬 KPI에 반영합니다.
             dashboardData.performance.totalRevenue += localRevenueTotal;
             dashboardData.performance.totalContracts += localContractCount; 
 
@@ -1092,9 +1400,9 @@
                  displayMessage('⚠️ 실적 저장은 완료되었으나, KPI 갱신에 실패했습니다. (Apps Script 확인)', 'error');
             }
 
-            // 전송에 심각한 오류가 없었다면 true 반환 (다운로드 진행 가능)
             return !hasError;
         };
+        window.handleSavePerformance = handleSavePerformance;
 
         
         // --- LLM 인사이트 분석 (Gemini API 호출) ---
@@ -1148,65 +1456,61 @@
                  let delay = attempts === 1 ? 0 : Math.pow(2, attempts - 1) * 1000;
                  
                  if (delay > 0) {
-                     await sleep(delay);
+                      await sleep(delay);
                  }
                  
                  try {
-                     const apiKey = GEMINI_API_KEY; 
-                     if (!apiKey || apiKey === "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4") { // ⚠️ Placeholder check
-                         throw new Error("API 키가 설정되지 않았습니다. 스크립트 상단의 GEMINI_API_KEY를 확인하세요.");
-                     }
-                     
-                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+                      const apiKey = GEMINI_API_KEY; 
+                      if (!apiKey) {
+                          throw new Error("API 키가 설정되지 않았습니다.");
+                      }
+                      
+                      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
-                     const payload = {
-                         contents: [{ parts: [{ text: analysisPrompt }] }],
-                         // ⚠️ Grounding/System instructions는 API Key가 실제 Enterprise 등급일 때만 작동할 수 있습니다.
-                         // tools: [{ "google_search": {} }], 
-                         systemInstruction: {
-                             parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
-                         },
-                     };
-                     
-                     const response = await fetch(apiUrl, {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify(payload)
-                     });
-                     
-                     if (!response.ok) {
-                         const errorBody = await response.json();
-                         console.error("Gemini API Error:", errorBody);
-                         const errorMsg = errorBody?.error?.message || `HTTP 오류: ${response.status}`;
-                         throw new Error(errorMsg);
-                     }
+                      const payload = {
+                           contents: [{ parts: [{ text: analysisPrompt }] }],
+                           tools: [{ "google_search": {} }],
+                           systemInstruction: {
+                               parts: [{ text: "당신은 영업 사원의 성과를 분석하는 전문 AI 분석가입니다. 응답은 분석과 액션 플랜에 집중하며, 친절하고 전문적인 톤을 유지합니다." }]
+                           },
+                       };
+                       
+                       const response = await fetch(apiUrl, {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify(payload)
+                       });
+                       
+                       if (!response.ok) {
+                           throw new Error(`HTTP 오류: ${response.status}`);
+                       }
 
-                     const result = await response.json();
-                     const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                     
-                     if (analysisText) {
-                         if (typeof marked !== 'undefined') {
-                             resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
-                         } else {
-                             // Marked.js 로드 실패 시 안전하게 텍스트만 표시
-                             resultElement.innerHTML = `<pre class="p-4 bg-gray-50 rounded-xl shadow-inner whitespace-pre-wrap">${analysisText.replace(/\n/g, '<br>')}</pre>`;
-                         }
-                         lucide.createIcons();
-                         return; 
-                     } else {
-                         throw new Error("응답 내용 누락");
-                     }
+                       const result = await response.json();
+                       const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                       
+                       if (analysisText) {
+                            if (typeof marked !== 'undefined') {
+                                resultElement.innerHTML = `<div class="p-4 bg-gray-50 rounded-xl shadow-inner">${marked.parse(analysisText)}</div>`;
+                            } else {
+                                // Marked.js 로드 실패 시 안전하게 텍스트만 표시
+                                resultElement.innerHTML = `<pre class="p-4 bg-gray-50 rounded-xl shadow-inner whitespace-pre-wrap">${analysisText.replace(/\n/g, '<br>')}</pre>`;
+                            }
+                            lucide.createIcons();
+                            return; 
+                       } else {
+                           throw new Error("응답 내용 누락");
+                       }
 
                  } catch (error) {
-                     const isRetryable = error.message.includes('503') || error.message.includes('429');
-                     
-                     if (isRetryable && attempts < maxAttempts) {
-                         resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
-                         continue;
-                     } else {
-                         resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
-                         return;
-                     }
+                      const isRetryable = error.message.includes('HTTP 오류: 503') || error.message.includes('HTTP 오류: 429');
+                      
+                      if (isRetryable && attempts < maxAttempts) {
+                           resultElement.innerHTML = `<div class="text-center py-2 text-orange-600">재시도 ${attempts}/${maxAttempts}: 서버 과부하. 잠시 후 다시 시도합니다...</div>`;
+                           continue;
+                      } else {
+                           resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (원인: ${error.message})</div>`;
+                           return;
+                      }
                  }
              } // end while
              resultElement.innerHTML = `<div class="text-center py-4 text-red-600 font-semibold">❌ AI 분석에 최종 실패했습니다. (최대 재시도 횟수 초과)</div>`;
@@ -1233,48 +1537,34 @@
                  const captureArea = document.getElementById('dashboard-container'); 
                  
                  html2canvas(captureArea, {
-                     scale: 2, 
-                     logging: false, // 콘솔 로그 최소화
-                     useCORS: true,
-                     allowTaint: true
+                      scale: 2, 
+                      logging: false,
+                      useCORS: true,
+                      allowTaint: true
                  }).then(canvas => {
-                     const link = document.createElement('a');
-                     const today = new Date().toISOString().slice(0, 10);
-                     link.download = `영업일일보고서_${reporterName}_${today}.png`;
-                     
-                     link.href = canvas.toDataURL('image/png');
-                     
-                     setTimeout(() => {
-                         link.click();
-                         displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
-                         
-                         // 3. 다운로드 및 저장 후 최종 초기화
-                         resetAllInputs();
-                     }, 500);
+                      const link = document.createElement('a');
+                      const today = new Date().toISOString().slice(0, 10);
+                      link.download = `영업일일보고서_${reporterName}_${today}.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      
+                      setTimeout(() => {
+                          link.click();
+                          displayMessage('🎉 보고서 이미지 다운로드 완료! 모든 필드를 초기화합니다.', 'success');
+                          
+                          // 3. 다운로드 및 저장 후 최종 초기화
+                          resetAllInputs();
+                      }, 500);
                  }).catch(error => {
-                     console.error('Error capturing dashboard:', error);
-                     resetAllInputs(); // 캡처 실패 시에도 초기화는 진행
-                     displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
+                      console.error('Error capturing dashboard:', error);
+                      resetAllInputs();
+                      displayMessage('❌ 이미지 캡처에 실패했습니다. (브라우저 보안 설정 확인)', 'error');
                  });
             });
         }
         window.downloadAsPNG = downloadAsPNG;
         
         // --- 커스텀 메시지 표시 함수 ---
-        function displayMessage(message, type) {
-            const statusElement = document.getElementById('saveStatus');
-            statusElement.textContent = message;
-            statusElement.className = `mt-2 text-sm font-semibold text-center ${type === 'error' ? 'text-red-600' : type === 'info' ? 'text-blue-600' : 'text-green-600'}`;
-        
-            // 일정 시간 후 메시지 초기화
-            if (type !== 'info') {
-                setTimeout(() => {
-                    statusElement.textContent = '실적 및 활동 내역을 기록해 주세요.';
-                    statusElement.className = 'mt-2 text-sm text-gray-500 font-semibold text-center';
-                }, 8000);
-            }
-        }
-        window.displayMessage = displayMessage;
+        // (Removed duplicate displayMessage function definition here)
         
         // --- 드래그 앤 드롭 로직 ---
         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
@@ -1287,14 +1577,14 @@
             const draggedElement = document.getElementById(data); 
             if (draggedElement) { 
                 
-                if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요')) {
+                if (event.currentTarget.textContent.includes('활동 카드를 여기에 놓으세요') || event.currentTarget.textContent.includes('등록된 활동이 없습니다')) {
                     event.currentTarget.innerHTML = '';
                 }
 
                 if (event.currentTarget.querySelector(`[data-original-id="${draggedElement.id}"]`)) {
-                    displayMessage('이미 추가된 활동입니다.', 'info');
-                    draggedElement.classList.remove('dragging');
-                    return;
+                      displayMessage('이미 추가된 활동입니다.', 'info');
+                      draggedElement.classList.remove('dragging');
+                      return;
                 }
                 
                 const clone = draggedElement.cloneNode(true);
@@ -1311,10 +1601,10 @@
                 const cardContent = dashboardData.activities.find(a => a.id === draggedElement.id) || {};
                 
                 clone.innerHTML = `<div class="flex justify-between items-center">
-                                     <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
-                                     <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
-                                   </div>
-                                   <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
+                             <span class="font-bold">${cardContent.type || '활동'} (${cardContent.time || ''})</span>
+                             <button onclick="this.parentElement.parentElement.remove(); checkPlanDropTargetEmpty();" class="text-red-500 hover:text-red-700 font-bold ml-2" title="연관 활동 연결 해제">X</button>
+                            </div>
+                            <p class="mt-1">🔗 ${cardContent.target || detailsText}</p>`; 
                 
                 event.currentTarget.appendChild(clone);
                 draggedElement.classList.remove('dragging');
@@ -1339,7 +1629,13 @@
         function resetAllInputs() {
             // 1. 활동/계획 입력 초기화
             document.getElementById('activityType').value = '';
-            document.getElementById('dynamicActivityFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 관련 입력 필드가 여기에 나타납니다.</p>';
+            document.getElementById('activitySectionsContainer').innerHTML = `
+                <div id="emptyStateMessage" class="border-l-4 border-blue-200 pl-4 py-8 text-center bg-gray-50 rounded-r-lg">
+                    <p class="text-sm text-gray-500">위의 <strong>'영업 활동 유형 추가'</strong> 메뉴에서 유형을 선택하면<br>입력 테이블이 여기에 생성됩니다.</p>
+                </div>
+            `;
+            document.getElementById('saveAllButtonArea').classList.add('hidden');
+            
             document.getElementById('planActivityType').value = '';
             document.getElementById('planDropTarget').innerHTML = '활동 카드를 여기에 놓으세요 (선택사항)';
             document.getElementById('dynamicPlanFields').innerHTML = '<p class="text-sm text-gray-400">활동 유형을 선택하면 후속 작업 필드가 여기에 나타납니다.</p>';
@@ -1382,18 +1678,25 @@
         document.addEventListener('DOMContentLoaded', async () => {
             
             // 기본 UI 렌더링 (아이콘 활성화)
-            document.getElementById('userIdDisplay').textContent = currentUserId.substring(0, 12) + "..."; // ⭐️ ID가 너무 길어 축약 표시
+            document.getElementById('userIdDisplay').textContent = currentUserId;
             lucide.createIcons();
             
             // --- 리스너 연결 ---
-            document.getElementById('addActivityButton').addEventListener('click', handleAddActivity);
+            // 기존 addActivityButton 삭제됨 -> handleSaveAllActivities로 대체됨
             document.getElementById('addPlanButton').addEventListener('click', handleAddPlan);
             document.getElementById('savePerformanceButton').addEventListener('click', handleSavePerformance);
             document.getElementById('analyzeButton').addEventListener('click', analyzePerformance);
             document.getElementById('downloadButton').addEventListener('click', downloadAsPNG);
             
-            // 활동/계획 드롭다운 변경 리스너
-            document.getElementById('activityType').addEventListener('change', renderDynamicFields);
+            // 활동 유형 추가 리스너 (appendActivitySection)
+            document.getElementById('activityType').addEventListener('change', (e) => {
+                const selectedType = e.target.value;
+                if (selectedType && selectedType !== "") {
+                    appendActivitySection(selectedType);
+                    e.target.value = ""; // 선택 초기화 (다시 선택 가능하게)
+                }
+            });
+
             document.getElementById('planActivityType').addEventListener('change', renderPlanDynamicFields);
             
             // 실적 건수 입력 리스너
@@ -1422,21 +1725,16 @@
 
             if (savedName) {
                 reporterNameSelect.value = savedName;
-                // ⭐️ 페이지 로드 시 이름이 있으면 자동으로 데이터 로드 (KPI만)
-                await fetchSalesData(savedName, false); 
             } 
             
-            reporterNameSelect.addEventListener('change', async (event) => {
+            reporterNameSelect.addEventListener('change', (event) => {
                 const selectedName = event.target.value.trim();
                 if (selectedName) {
                     localStorage.setItem(REPORTER_NAME_KEY, selectedName);
                     displayMessage(`✅ 보고자 이름이 ${selectedName}으로 설정되었습니다.`, 'success');
-                    // ⭐️ 이름 변경 시 해당 사용자의 데이터로 새로 고침 (KPI만)
-                    await fetchSalesData(selectedName, false);
                 } else {
                     localStorage.removeItem(REPORTER_NAME_KEY);
                     displayMessage(`⚠️ 보고자 이름을 선택해 주세요.`, 'error');
-                    resetAllInputs(); // 이름 선택 해제 시 초기화
                 }
             });
             
@@ -1447,117 +1745,6 @@
             // 초기 대시보드 UI 업데이트 (데이터 로드 전까지는 0)
             updateDashboardUI();
         });
-
-        // --- Sheets에서 데이터 읽어오기 (월간 KPI 및 활동 건수) ---
-        // loadActivities: true일 때만 activities 배열을 덮어씁니다.
-        async function fetchSalesData(reporterName, loadActivities = false) {
-            displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
-
-            if (!SHEETS_READ_URL || SHEETS_READ_URL.includes("YOUR_WEB_APP_URL_HERE")) {
-                displayMessage('❌ Sheets URL이 설정되지 않았습니다. (스크립트 상단 확인)', 'error');
-                return false;
-            }
-
-            try {
-                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
-                    method: 'GET',
-                    mode: 'cors' // ⚠️ Apps Script에서 CORS를 허용해야 합니다.
-                });
-                
-                // HTTP 오류 응답 처리
-                if (!response.ok) {
-                     const errorBody = await response.text();
-                     console.error("Sheets API HTTP Error:", response.status, errorBody);
-                     throw new Error(`HTTP 오류: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                if (data.status === 'success' && data.message) {
-                    const fetchedData = data.message;
-
-                    // 1. KPI 업데이트 (항상)
-                    const monthly = fetchedData.monthlyKPI || {};
-                    dashboardData.performance.monthlyCumulativeSales = monthly.totalCumulativeSales || 0;
-                    dashboardData.performance.myMonthlySales = monthly.myMonthlySales || 0;
-                    dashboardData.chartData.activityCounts = monthly.activityCounts || {};
-                    
-                    // 2. 활동 목록 업데이트 (요청 시에만)
-                    if (loadActivities) {
-                        dashboardData.activities = fetchedData.activities || [];
-                        dashboardData.plans = fetchedData.plans || []; // 과거 계획도 로드
-                    }
-
-                    // 3. 오늘 실적 요약 업데이트 (KPI 갱신 시에만)
-                    // Sheets에서 계산된 오늘 KPI 값만 업데이트
-                    dashboardData.performance.totalRevenue = (fetchedData.todaySummaries || [])
-                        .filter(s => s.type === 'revenue')
-                        .reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
-                        
-                    dashboardData.performance.totalContracts = (fetchedData.todaySummaries || [])
-                           .filter(s => s.type === 'contract')
-                           .length;
-                    
-                    // ⭐️ 수정: 실적 저장 시에는 오늘 실적 목록(todaySummaries)을 덮어쓰지 않습니다.
-                    if (loadActivities) {
-                         dashboardData.todaySummaries = fetchedData.todaySummaries || [];
-                    }
-
-                    // 4. UI 갱신
-                    renderActivityAndPlanLists(); 
-                    updateDashboardUI();
-                    displayMessage('✅ 데이터 로드 및 KPI 갱신 완료.', 'success');
-                    return true;
-                } else {
-                     console.error("Sheets Load Error:", data.message || "데이터 로드 실패");
-                     displayMessage(`❌ 데이터 로드 실패: ${data.message || 'Apps Script 응답 오류'}`, 'error');
-                     return false;
-                }
-            
-            } catch (error) {
-                console.error("Sheets Read Error:", error);
-                // Sheets 읽기 실패 시 로컬 목록은 유지하고 오류 메시지 출력
-                displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
-                updateDashboardUI(); 
-                return false;
-            }
-        }
-        window.fetchSalesData = fetchSalesData;
-
-
-        // --- Google Sheets로 데이터 전송 핵심 함수 ---
-        async function sendDataToSheets(action, dataPayload) {
-            const displayType = action === 'add활동' ? '활동' : action === 'add계획' ? '계획' : '실적';
-            
-            if (!SHEETS_URL || SHEETS_URL.includes("YOUR_WEB_APP_URL_HERE")) {
-                console.warn("[Google Sheets Mock] Sheets URL이 설정되지 않아 전송을 건너뛰니다.");
-                displayMessage('⚠️ Sheets URL이 설정되지 않았습니다. (전송 Mock 처리)', 'error');
-                return false; // ⚠️ URL이 없으면 실패 처리
-            }
-
-            try {
-                // ⚠️ 'no-cors' 모드는 응답을 읽을 수 없게 만듭니다.
-                // Apps Script가 JSONP나 적절한 CORS 헤더를 반환하도록 수정하는 것이 가장 좋습니다.
-                // 일단 'no-cors'로 전송 시도 (응답 확인 불가)
-                const response = await fetch(SHEETS_API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', 
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, data: dataPayload })
-                });
-
-                // 'no-cors' 모드에서는 response.ok, response.status 등을 확인할 수 없습니다.
-                // 일단 요청이 성공적으로 전송되었다고 가정합니다.
-                console.log(`[Google Sheets Success Check] ${displayType} 데이터 전송 완료. (실제 서버 응답 확인 필요)`);
-                return true;
-
-            } catch (error) {
-                console.error(`[Google Sheets Error] ${displayType} 데이터 전송 실패:`, error);
-                displayMessage(`❌ ${displayType} 데이터 전송 실패: ${error.message} (네트워크 또는 Apps Script 설정을 확인하세요)`, 'error');
-                return false;
-            }
-        }
-        window.sendDataToSheets = sendDataToSheets;
 
     </script>
 </body>
