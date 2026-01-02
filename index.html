@@ -507,7 +507,9 @@
                 const response = await fetch(SHEETS_API_URL, {
                     method: 'POST',
                     mode: 'no-cors', 
-                    headers: { 'Content-Type': 'application/json' },
+                    // [중요] Content-Type을 text/plain으로 변경하여 브라우저의 Preflight 요청 문제를 회피하고
+                    // GAS에서 e.postData.contents를 통해 데이터를 받을 수 있도록 함.
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: action, data: dataPayload })
                 });
 
@@ -1595,9 +1597,6 @@
             });
         }
         window.downloadAsPNG = downloadAsPNG;
-        
-        // --- 커스텀 메시지 표시 함수 ---
-        // (Removed duplicate displayMessage function definition here)
         
         // --- 드래그 앤 드롭 로직 ---
         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
