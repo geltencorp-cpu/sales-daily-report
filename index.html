@@ -835,13 +835,17 @@
             lucide.createIcons();
         }
 
-        function deleteActivity(activityId) {
+        async function deleteActivity(activityId) {
+            if (!confirm('정말로 이 활동 내역을 삭제하시겠습니까?')) return;
+
+            const activityToDelete = dashboardData.activities.find(a => a.id === activityId);
+
+            // UI에서 즉시 제거
             dashboardData.activities = dashboardData.activities.filter(a => a.id !== activityId);
             
             const element = document.getElementById(activityId);
             if (element) {
                 element.remove();
-                displayMessage('✔️ 활동 내역이 삭제되었습니다.', 'success');
             }
             
             const list = document.getElementById('activityList');
@@ -849,16 +853,33 @@
                 list.innerHTML = '<p class="text-gray-400 text-sm">아직 등록된 활동이 없습니다.</p>';
             }
             lucide.createIcons();
+
+            // Google Sheets 삭제 요청 전송
+            if (activityToDelete) {
+                displayMessage('⏳ 스프레드시트에서도 삭제 중입니다...', 'info');
+                // 'delete활동' 액션으로 id와 함께 전송
+                const success = await sendDataToSheets('delete활동', { id: activityToDelete.id, reporter: activityToDelete.reporter });
+                
+                if (success) {
+                    displayMessage('🗑️ 활동 내역이 삭제되었습니다.', 'success');
+                } else {
+                    displayMessage('⚠️ 화면에서는 삭제되었으나, 시트 삭제 요청에 실패했습니다.', 'error');
+                }
+            }
         }
         window.deleteActivity = deleteActivity;
 
-        function deletePlan(planId) {
+        async function deletePlan(planId) {
+            if (!confirm('정말로 이 계획을 삭제하시겠습니까?')) return;
+
+            const planToDelete = dashboardData.plans.find(p => p.id === planId);
+
+            // UI에서 즉시 제거
             dashboardData.plans = dashboardData.plans.filter(p => p.id !== planId);
             
             const element = document.getElementById(planId);
             if (element) {
                 element.remove();
-                displayMessage('✔️ 내일 계획이 삭제되었습니다.', 'success');
             }
             
             const list = document.getElementById('planList');
@@ -866,6 +887,18 @@
                 list.innerHTML = '<p class="text-gray-400 text-sm">등록된 내일 계획이 없습니다. 위의 양식으로 계획을 추가해 보세요。</p>';
             }
             lucide.createIcons();
+
+            // Sheets 삭제 요청
+            if (planToDelete) {
+                displayMessage('⏳ 스프레드시트에서도 삭제 중입니다...', 'info');
+                const success = await sendDataToSheets('delete계획', { id: planToDelete.id, reporter: planToDelete.reporter });
+                
+                if (success) {
+                    displayMessage('🗑️ 내일 계획이 삭제되었습니다.', 'success');
+                } else {
+                    displayMessage('⚠️ 화면에서는 삭제되었으나, 시트 삭제 요청에 실패했습니다.', 'error');
+                }
+            }
         }
         window.deletePlan = deletePlan;
 
