@@ -447,7 +447,7 @@
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
         // [필수] Google Sheets Web App URL
-        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxCq9AE93PxKNttqmwjMyK3Rgze9JLoSRJUhkXYMD3MZ9_qNyLBysH7h41sITeZhePYMw/exec";
+        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzYdR7qgkIUmy8OCEV9sy20tAjpGafTZxwoPAC3dvPxjRUtqZyPwav8K0ipi4E81ePxZA/exec";
         const SHEETS_API_URL = SHEETS_URL;
         const SHEETS_READ_URL = SHEETS_URL;
 
@@ -774,7 +774,7 @@
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <h4 class="mt-2 text-md font-extrabold text-indigo-900">${plan.followup}</h4>
+                h4 class="mt-2 text-md font-extrabold text-indigo-900">${plan.followup}</h4>
                 <p class="text-sm mt-1 text-gray-700">상세: ${plan.details}</p>
                 ${relatedHtml}
             `;
@@ -857,10 +857,11 @@
             lucide.createIcons();
 
             // Google Sheets 삭제 요청 전송
+            // 중요: ID만 보내는 것이 아니라, 행을 찾기 위한 상세 정보를 모두 보냄
             if (activityToDelete) {
                 displayMessage('⏳ 스프레드시트에서도 삭제 중입니다...', 'info');
-                // 'delete활동' 액션으로 id와 함께 전송
-                const success = await sendDataToSheets('delete활동', { id: activityToDelete.id, reporter: activityToDelete.reporter });
+                // sendDataToSheets 호출 시 전체 객체 전달
+                const success = await sendDataToSheets('delete활동', activityToDelete);
                 
                 if (success) {
                     displayMessage('🗑️ 활동 내역이 삭제되었습니다.', 'success');
@@ -893,7 +894,8 @@
             // Sheets 삭제 요청
             if (planToDelete) {
                 displayMessage('⏳ 스프레드시트에서도 삭제 중입니다...', 'info');
-                const success = await sendDataToSheets('delete계획', { id: planToDelete.id, reporter: planToDelete.reporter });
+                 // sendDataToSheets 호출 시 전체 객체 전달
+                const success = await sendDataToSheets('delete계획', planToDelete);
                 
                 if (success) {
                     displayMessage('🗑️ 내일 계획이 삭제되었습니다.', 'success');
