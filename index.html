@@ -443,11 +443,11 @@
     <script type="module">
         
         // --- Gemini API 설정 ---
-        const GEMINI_API_KEY = ""; 
+        const GEMINI_API_KEY = "AIzaSyD7md4tcbDQJ9_WrBowlIjdvss4wajs2R4"; 
         const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
         
         // [필수] Google Sheets Web App URL
-        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbwr7TATOXCB-B6hnckNv1OZfG8pGKS6PlEgMcnoeM7cWFI2A3TXDNMn0NS2FKnnMAlGOQ/exec";
+        const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxnayrA2wOsJD2ufEgiXnDuURV7gkHLAEw0Z49oqxisfpzht_GaJY_xrcBG9h21VekbWg/exec";
         const SHEETS_API_URL = SHEETS_URL;
         const SHEETS_READ_URL = SHEETS_URL;
 
@@ -529,9 +529,11 @@
             displayMessage(`⏳ ${reporterName}님의 대시보드 데이터를 Sheets에서 불러오는 중...`, 'info');
 
             try {
-                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}`, {
+                // cache buster added
+                const response = await fetch(`${SHEETS_READ_URL}?action=getDashboardData&reporter=${encodeURIComponent(reporterName)}&_t=${Date.now()}`, {
                     method: 'GET',
-                    mode: 'cors'
+                    mode: 'cors',
+                    redirect: 'follow'
                 });
                 
                 if (!response.ok) {
@@ -579,7 +581,11 @@
             
             } catch (error) {
                 console.error("Sheets Read Error:", error);
-                displayMessage('❌ Sheets 데이터 로드 실패. (Apps Script 재배포/권한 확인 요망)', 'error');
+                if (error.message.includes('Failed to fetch')) {
+                     displayMessage('❌ 데이터 불러오기 실패: Google Script 권한 설정을 "모든 사용자(Anyone)"로 했는지 확인해주세요.', 'error');
+                } else {
+                     displayMessage('❌ Sheets 데이터 로드 실패. (네트워크 또는 스크립트 오류)', 'error');
+                }
                 updateDashboardUI(); 
                 return false;
             }
@@ -1599,9 +1605,6 @@
             });
         }
         window.downloadAsPNG = downloadAsPNG;
-        
-        // --- 커스텀 메시지 표시 함수 ---
-        // (Removed duplicate displayMessage function definition here)
         
         // --- 드래그 앤 드롭 로직 ---
         function handleDragStart(event) { event.dataTransfer.setData('text/plain', event.target.id); event.target.classList.add('dragging'); }
